@@ -1,3 +1,6 @@
+*.DS_Store
+/build
+
 *.yy.c
 *.out
 *.tab.c
