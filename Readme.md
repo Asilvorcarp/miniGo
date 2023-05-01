@@ -6,6 +6,22 @@ The compiler for a subset of Go, implemented in C++.
 
 // TODO
 
+keywords:
+```
+"package"
+"import"
+"var"
+"func"
+"return"
+"if"
+"else"
+"for"
+"break"
+"continue"
+"defer"
+"goto"
+```
+
 ## build
 
 ```bash
