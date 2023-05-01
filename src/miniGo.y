@@ -1,6 +1,6 @@
 %code requires {
   #include <memory>
-  #include <ast.hpp>
+  #include <AST.hpp>
   #include <string>
 }
 
@@ -10,7 +10,7 @@
 #include <memory>
 #include <string>
 
-#include <ast.hpp>
+#include <AST.hpp>
 
 // 声明 lexer 函数和错误处理函数
 int yylex();

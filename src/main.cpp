@@ -4,7 +4,7 @@
 #include <memory>
 #include <string>
 
-#include <ast.hpp>
+#include <AST.hpp>
 
 using namespace std;
 

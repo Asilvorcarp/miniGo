@@ -35,7 +35,7 @@ class FuncDefAST : public BaseAST {
     unique_ptr<BaseAST> block;
 
     ostream &Dump(ostream &os) const override {
-        os << "FuncDefAST { " << ident << " " << *func_type << " " << *block
+        os << "FuncDefAST { " << ident << ", " << *func_type << ", " << *block
            << " }";
         return os;
     }
