@@ -1,5 +1,6 @@
 %code requires {
   #include <memory>
+  #include <ast.hpp>
   #include <string>
 }
 
@@ -13,7 +14,7 @@
 
 // 声明 lexer 函数和错误处理函数
 int yylex();
-void yyerror(std::unique_ptr<std::string> &ast, const char *s);
+void yyerror(std::unique_ptr<BaseAST> &ast, const char *s);
 
 using namespace std;
 
@@ -43,7 +44,8 @@ using namespace std;
 %token <int_val> INT_CONST
 
 // 非终结符的类型定义
-%type <str_val> PackDef FuncDef FuncType Block Stmt Number
+%type <ast_val> PackDef FuncDef FuncType Block Stmt
+%type <int_val> Number
 
 %%
 
@@ -55,13 +57,16 @@ using namespace std;
 CompUnit
   : PackDef FuncDef {
     // ignore package
-    ast = unique_ptr<string>($2);
+    auto comp_unit = make_unique<CompUnitAST>();
+    comp_unit->func_def = unique_ptr<BaseAST>($2);
+    ast = move(comp_unit);
   };
 
 PackDef
   : PACKAGE IDENT {
-    auto ident = unique_ptr<string>($2);
-    $$ = new string("package " + *ident);
+    auto ast = new PackDefAST();
+    ast->ident = *unique_ptr<string>($2);
+    $$ = ast;
   };
 
 // FuncDef ::= FuncType IDENT '(' ')' Block;
@@ -77,39 +82,44 @@ PackDef
 // TODO: void func type, param list
 FuncDef
   : FUNC IDENT '(' ')' FuncType Block {
-    auto type = unique_ptr<string>($5);
-    auto ident = unique_ptr<string>($2);
-    auto block = unique_ptr<string>($6);
-    $$ = new string("func " + *ident + "() " + *type + " " + *block);
+    auto ast = new FuncDefAST();
+    ast->ident = *unique_ptr<string>($2);
+    ast->func_type = unique_ptr<BaseAST>($5);
+    ast->block = unique_ptr<BaseAST>($6);
+    $$ = ast;
   };
 
 // 同上, 不再解释
 FuncType
   : INT {
-    $$ = new string("int");
+    auto ast = new FuncTypeAST();
+    ast->type = "int";
+    $$ = ast;
   };
 
 Block
   : '{' Stmt '}' {
-    auto stmt = unique_ptr<string>($2);
-    $$ = new string("{ " + *stmt + " }");
+    auto ast = new BlockAST();
+    ast->stmt = unique_ptr<BaseAST>($2);
+    $$ = ast;
   };
 
 Stmt
   : RETURN Number {
-    auto number = unique_ptr<string>($2);
-    $$ = new string("return " + *number);
+    auto ast = new StmtAST();
+    ast->number = $2;
+    $$ = ast;
   };
 
 Number
   : INT_CONST {
-    $$ = new string(to_string($1));
+    $$ = $1;
   };
 
 %%
 
 // 定义错误处理函数, 其中第二个参数是错误信息
 // parser 如果发生错误 (例如输入的程序出现了语法错误), 就会调用这个函数
-void yyerror(unique_ptr<string> &ast, const char *s) {
+void yyerror(unique_ptr<BaseAST> &ast, const char *s) {
   cerr << "error: " << s << endl;
 }

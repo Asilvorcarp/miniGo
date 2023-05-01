@@ -39,10 +39,14 @@ int main(int argc, const char *argv[]) {
 
     // 调用 parser 函数, parser 函数会进一步调用 lexer 解析输入文件的
     unique_ptr<BaseAST> ast;
+
+    cout<<">> parsing... ";
     auto ret = yyparse(ast);
+    cout<<"done"<<endl;
+
     assert(!ret);
 
     // 输出解析得到的 AST, 其实就是个字符串
-    // cout << *ast << endl;
+    cout << *ast << endl;
     return 0;
 }
