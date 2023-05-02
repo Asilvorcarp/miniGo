@@ -19,6 +19,7 @@ class BaseAST {
     friend ostream &operator<<(ostream &os, const BaseAST &ast) {
         return os << ast.toJson().dump(4);
     }
+    virtual void add(BaseAST *ast) {};
 };
 
 using pAST = unique_ptr<BaseAST>;
@@ -277,13 +278,21 @@ class ShortVarDeclAST : public StmtAST {
 class LValAST : public BaseAST {
    public:
     string ident;
-    pvpAST indexList = nullptr;
+    pvpAST indexList;
+
+    void add(BaseAST* index) override {
+        if (indexList == nullptr) { 
+            // actually impossible
+            indexList = make_unique<vpAST>();
+        }
+        indexList->push_back(pAST(index));
+    }
 
     json toJson() const override {
         json j;
         j["type"] = "LValAST";
         j["ident"] = ident;
-        if (indexList != nullptr) {
+        if (indexList->size() > 0) {
             j["indexList"] = json::array();
             for (auto &index : *indexList) {
                 j["indexList"].push_back(index->toJson());
@@ -300,7 +309,7 @@ class BinExpAST : public BaseAST {
     pAST right;
 
     BinExpAST(char _op, BaseAST *ast1, BaseAST *ast2) {
-        op = *unique_ptr<string>(&to_string(_op));
+        op = _op;
         left = pAST(ast1);
         right = pAST(ast2);
     }

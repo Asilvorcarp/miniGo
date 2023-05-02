@@ -173,7 +173,7 @@ AssignStmt : LVal '=' Exp {
 // i, j := 0, 10
 ShortVarDecl : IDs DEFINE InitVals {
     auto ast = new ShortVarDeclAST();
-    ast->idents = pvpAST($1);
+    ast->idents = pvStr($1);
     ast->initVals = pvpAST($3);
     $$ = ast;
 };
@@ -272,18 +272,18 @@ VarDecl : VAR VarSpec {
 };
 VarSpec : IDs BType '=' InitVals {
     auto ast = new VarSpecAST();
-    ast->idents = pvpAST($1);
+    ast->idents = pvStr($1);
     ast->btype = pAST($2);
     ast->initVals = pvpAST($4);
     $$ = ast;
 }| IDs '=' InitVals {
     auto ast = new VarSpecAST();
-    ast->idents = pvpAST($1);
+    ast->idents = pvStr($1);
     ast->initVals = pvpAST($3);
     $$ = ast;
 }| IDs BType {
     auto ast = new VarSpecAST();
-    ast->idents = pvpAST($1);
+    ast->idents = pvStr($1);
     ast->btype = pAST($2);
     $$ = ast;
 };
@@ -317,10 +317,11 @@ Exp : LOrExp {
 LVal : IDENT {
     auto ast = new LValAST();
     ast->ident = *unique_ptr<string>($1);
+    ast->indexList = make_unique<vpAST>();
     $$ = ast;
 } | LVal '[' Exp ']' {
     auto ast = $1;
-    ast->indexList->push_back(pAST($3));
+    ast->add($3);
     $$ = ast;
 };
 PrimaryExp : '(' Exp ')' {
