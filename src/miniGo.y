@@ -44,14 +44,16 @@ using namespace std;
 // 注意 IDENT 和 INT_CONST 会返回 token 的值, 分别对应 str_val 和 int_val
 %token INT RETURN PACKAGE IMPORT IF ELSE FOR DEFINE
     WHILE BREAK CONTINUE DEFER GOTO VAR FUNC CONST
-    LT GT LE GE EQ NE AND OR INC DEC
-%token <str_val> IDENT
+    INC DEC
+%token <str_val> IDENT LE GE EQ NE AND OR
 %token <int_val> INT_CONST
+%token <char_val> '+' '-' '*' '/' '%' '!' '&' '|' '^' '<' '>' '='
 
 // 非终结符的类型定义
-%type <ast_val> PackClause FuncDef FuncType Block Stmt ReturnStmt Exp ExpStmt IncDecStmt AssignStmt ShortVarDecl LVal FuncFParam BType TopLevelDecl PrimaryExp UnaryExp MulExp AddExp RelExp EqExp LAndExp LOrExp ConstExp VarDecl ConstDecl VarSpec ConstSpec ForStmt SimpleStmt
+%type <ast_val> PackClause FuncDef FuncType Block Stmt ReturnStmt Exp ExpStmt IncDecStmt AssignStmt ShortVarDecl LVal FuncFParam BType TopLevelDecl PrimaryExp UnaryExp MulExp AddExp RelExp EqExp LAndExp LOrExp ConstExp VarDecl ConstDecl VarSpec ConstSpec ForStmt SimpleStmt Decl IfStmt InitVal ConstInitVal
 %type <int_val> Number
 %type <char_val> AddOp MulOp UnaryOp
+%type <str_val> RelOp EqOp
 %type <ast_list> TopLevelDeclList FuncFParamList StmtList ArgList InitVals
 %type <str_list> IDs
 
@@ -250,7 +252,9 @@ IDs : IDENT {
     l->push_back(*unique_ptr<string>($3));
     $$ = l;
 };
-InitVal : Exp | '{' InitVals '}';
+// no init for array like: var a [2]int = {1, 2} // C style
+// support in the future: var a [2]int = [2]int{1, 2}
+InitVal : Exp ;
 InitVals : InitVal {
     auto l = new vpAST();
     l->push_back(pAST($1));
@@ -260,7 +264,7 @@ InitVals : InitVal {
     l->push_back(pAST($3));
     $$ = l;
 };
-ConstInitVal  : ConstExp | '{' ConstInitVals '}';
+ConstInitVal  : ConstExp ;
 ConstInitVals : ConstInitVal | ConstInitVals ',' ConstInitVal;
 // TODO support multiple var spec
 VarDecl : VAR VarSpec {
@@ -360,7 +364,8 @@ AddOp: '+' | '-';
 RelExp: AddExp {
     $$ = $1;
 } | RelExp RelOp AddExp;
-RelOp: LT | GT | LE | GE;
+RelOp: '<' {$$=new string("<");} | '>' {$$=new string(">");} 
+     | LE | GE;
 EqExp: RelExp {
     $$ = $1;
 } | EqExp EqOp RelExp;

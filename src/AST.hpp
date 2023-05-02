@@ -300,12 +300,12 @@ class BinExpAST : public BaseAST {
     pAST right;
 
     BinExpAST(char _op, BaseAST *ast1, BaseAST *ast2) {
-        op = _op;
+        op = *unique_ptr<string>(&to_string(_op));
         left = pAST(ast1);
         right = pAST(ast2);
     }
     BinExpAST(string* _op, BaseAST *ast1, BaseAST *ast2) {
-        op = _op;
+        op = *unique_ptr<string>(_op);
         left = pAST(ast1);
         right = pAST(ast2);
     }

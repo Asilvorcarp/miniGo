@@ -62,14 +62,12 @@ Hexadecimal   0[xX][0-9a-fA-F]+
 
 "int"           { return INT; }
 
-"=="            { return EQ; }
-"!="            { return NE; }
-"<"             { return LT; }
-"<="            { return LE; }
-">"             { return GT; }
-">="            { return GE; }
-"&&"            { return AND; }
-"||"            { return OR; }
+"=="            { yylval.str_val = new string(yytext); return EQ; }
+"!="            { yylval.str_val = new string(yytext); return NE; }
+"<="            { yylval.str_val = new string(yytext); return LE; }
+">="            { yylval.str_val = new string(yytext); return GE; }
+"&&"            { yylval.str_val = new string(yytext); return AND; }
+"||"            { yylval.str_val = new string(yytext); return OR; }
 
 {Identifier}    { yylval.str_val = new string(yytext); return IDENT; }
 
@@ -77,7 +75,7 @@ Hexadecimal   0[xX][0-9a-fA-F]+
 {Octal}         { yylval.int_val = strtol(yytext, nullptr, 0); return INT_CONST; }
 {Hexadecimal}   { yylval.int_val = strtol(yytext, nullptr, 0); return INT_CONST; }
 
-.               { return yytext[0]; }
+.               { yylval.char_val = yytext[0]; return yytext[0]; }
 
 %%
 
