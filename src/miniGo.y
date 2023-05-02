@@ -34,22 +34,26 @@ using namespace std;
 %union {
   string *str_val;
   int int_val;
+  char char_val;
   BaseAST *ast_val;
   vpAST *ast_list;
+  vector<string> *str_list;
 }
 
 // lexer 返回的所有 token 种类的声明
 // 注意 IDENT 和 INT_CONST 会返回 token 的值, 分别对应 str_val 和 int_val
 %token INT RETURN PACKAGE IMPORT IF ELSE FOR DEFINE
     WHILE BREAK CONTINUE DEFER GOTO VAR FUNC CONST
-    LT GT LE GE EQ NE AND OR NOT INC DEC
+    LT GT LE GE EQ NE AND OR INC DEC
 %token <str_val> IDENT
 %token <int_val> INT_CONST
 
 // 非终结符的类型定义
-%type <ast_val> PackClause FuncDef FuncType Block Stmt ReturnStmt Exp ExpStmt IncDecStmt AssignStmt ShortVarDecl LVal IDs InitVals FuncFParam BType TopLevelDecl PrimaryExp UnaryExp MulExp AddExp RelExp EqExp LAndExp LOrExp ConstExp
+%type <ast_val> PackClause FuncDef FuncType Block Stmt ReturnStmt Exp ExpStmt IncDecStmt AssignStmt ShortVarDecl LVal FuncFParam BType TopLevelDecl PrimaryExp UnaryExp MulExp AddExp RelExp EqExp LAndExp LOrExp ConstExp VarDecl ConstDecl VarSpec ConstSpec ForStmt SimpleStmt
 %type <int_val> Number
-%type <ast_list> TopLevelDeclList FuncFParamList StmtList ArgList
+%type <char_val> AddOp MulOp UnaryOp
+%type <ast_list> TopLevelDeclList FuncFParamList StmtList ArgList InitVals
+%type <str_list> IDs
 
 %%
 
@@ -159,20 +163,27 @@ IncDecStmt : LVal INC {
     // TODO
 };
 AssignStmt : LVal '=' Exp {
-    // TODO
+    auto ast = new AssignStmtAST();
+    ast->lval = pAST($1);
+    ast->exp = pAST($3);
+    $$ = ast;
 };
 // i, j := 0, 10
-ShortVarDecl : IDs DEFINE InitVals;
+ShortVarDecl : IDs DEFINE InitVals {
+    auto ast = new ShortVarDeclAST();
+    ast->idents = pvpAST($1);
+    ast->initVals = pvpAST($3);
+    $$ = ast;
+};
 SimpleStmt : /* empty stmt */ {
-
 } | ExpStmt {
-
+    $$ = $1;
 } | IncDecStmt {
-
+    $$ = $1;
 } | AssignStmt {
-
+    $$ = $1;
 } | ShortVarDecl {
-
+    $$ = $1;
 };
 
 /*
@@ -202,20 +213,23 @@ ReturnStmt : RETURN Exp {
     $$ = ast;
 };
 ForStmt : FOR Block { // always
-    // TODO
 } | FOR Exp Block { // while
-    // TODO
 } | FOR SimpleStmt ';' Exp ';' SimpleStmt Block { // for
-    // TODO
+    auto ast = new ForStmtAST();
+    ast->init = pAST($2);
+    ast->cond = pAST($4);
+    ast->post = pAST($6);
+    ast->block = pAST($7);
+    $$ = ast;
 };
 Stmt : Decl {
-
+    $$ = $1;
 } | IfStmt {
-
+    $$ = $1;
 } | ReturnStmt {
-
+    $$ = $1;
 } | SimpleStmt {
-    //TODO
+    $$ = $1;
 };
 
 // var i, j int = 1, 2
@@ -227,25 +241,68 @@ Stmt : Decl {
 // )
 // array: var a [2]type
 // TODO now only support one var decl
-IDs : IDENT | IDs ',' IDENT;
+IDs : IDENT {
+    auto l = new vector<string>();
+    l->push_back(*unique_ptr<string>($1));
+    $$ = l;
+} | IDs ',' IDENT {
+    auto l = $1;
+    l->push_back(*unique_ptr<string>($3));
+    $$ = l;
+};
 InitVal : Exp | '{' InitVals '}';
-InitVals : InitVal | InitVals ',' InitVal;
+InitVals : InitVal {
+    auto l = new vpAST();
+    l->push_back(pAST($1));
+    $$ = l;
+} | InitVals ',' InitVal {
+    auto l = $1;
+    l->push_back(pAST($3));
+    $$ = l;
+};
 ConstInitVal  : ConstExp | '{' ConstInitVals '}';
 ConstInitVals : ConstInitVal | ConstInitVals ',' ConstInitVal;
-VarDecl : VAR IDs BType '=' InitVals
-        | VAR IDs BType;
-VarSpec : IDs BType '=' InitVals
-        | IDs '=' InitVals
-        | IDs ;
-ConstDecl : CONST ConstSpec;
-ConstSpec : IDs BType '=' ConstInitVals
-          | IDs '=' ConstInitVals
-          | IDs;
+// TODO support multiple var spec
+VarDecl : VAR VarSpec {
+    $$ = $2;
+};
+VarSpec : IDs BType '=' InitVals {
+    auto ast = new VarSpecAST();
+    ast->idents = pvpAST($1);
+    ast->btype = pAST($2);
+    ast->initVals = pvpAST($4);
+    $$ = ast;
+}| IDs '=' InitVals {
+    auto ast = new VarSpecAST();
+    ast->idents = pvpAST($1);
+    ast->initVals = pvpAST($3);
+    $$ = ast;
+}| IDs BType {
+    auto ast = new VarSpecAST();
+    ast->idents = pvpAST($1);
+    ast->btype = pAST($2);
+    $$ = ast;
+};
+ConstDecl : CONST ConstSpec {
+    $$ = $2;
+};
+ConstSpec : IDs BType '=' ConstInitVals {
+}| IDs '=' ConstInitVals {
+}| IDs;
 // TODO TypeDecl
 Decl : VarDecl | ConstDecl;
 ConstIndex : '[' ConstExp ']';
 ConstIndexs : ConstIndex | ConstIndexs ConstIndex;
-BType : INT | INT ConstIndexs;
+BType : INT {
+    auto ast = new BTypeAST();
+    // ast->type = "int"; // default
+    $$ = ast;
+}| INT ConstIndexs {
+    auto ast = new BTypeAST();
+    // ast->type = "int"; // default
+    // TODO
+    $$ = ast;
+};
 
 Number : INT_CONST {
     $$ = $1;
@@ -254,7 +311,13 @@ Exp : LOrExp {
     $$ = $1;
 };
 LVal : IDENT {
+    auto ast = new LValAST();
+    ast->ident = *unique_ptr<string>($1);
+    $$ = ast;
 } | LVal '[' Exp ']' {
+    auto ast = $1;
+    ast->indexList->push_back(pAST($3));
+    $$ = ast;
 };
 PrimaryExp : '(' Exp ')' {
     $$ = new PrimaryExpAST($2, PrimaryExpAST::Type::PAREN);
@@ -266,8 +329,11 @@ PrimaryExp : '(' Exp ')' {
 UnaryExp : PrimaryExp  {
     $$ = $1;
 } | IDENT '(' ArgList ')' {
-} | UnaryOp UnaryExp;
-UnaryOp: '+' | '-' | NOT;
+    $$ = new UnaryExpAST($1, $3);
+} | UnaryOp UnaryExp {
+    $$ = new UnaryExpAST($1, $2);
+};
+UnaryOp: '+' | '-' | '!';
 ArgList : /* empty */ {
     auto l = new vpAST();
     $$ = l;
@@ -282,11 +348,14 @@ ArgList : /* empty */ {
 };
 MulExp: UnaryExp {
     $$ = $1;
-} | MulExp MulOp UnaryExp;
+} | MulExp MulOp UnaryExp {
+    $$ = new BinExpAST($2, $1, $3);
+};
 MulOp: '*' | '/' | '%';
 AddExp: MulExp {
     $$ = $1;
-} | AddExp AddOp MulExp;
+} | AddExp AddOp MulExp {
+};
 AddOp: '+' | '-';
 RelExp: AddExp {
     $$ = $1;

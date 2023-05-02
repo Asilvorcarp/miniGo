@@ -24,6 +24,7 @@ class BaseAST {
 using pAST = unique_ptr<BaseAST>;
 using vpAST = vector<pAST>;
 using pvpAST = unique_ptr<vpAST>;
+using pvStr = unique_ptr<vector<string>>;
 
 // dump list with no ending comma
 
@@ -138,6 +139,183 @@ class PrimaryExpAST : public BaseAST {
         } else if (t == NUM) {
             j["num"] = num;
         }
+        return j;
+    }
+};
+
+class BTypeAST : public BaseAST {
+    public:
+    string elementType = "int";
+    unique_ptr<vector<int>> dims = nullptr;
+
+    json toJson() const override {
+        json j;
+        j["type"] = "BType";
+        j["elementType"] = elementType;
+        if (dims != nullptr) {
+            j["dims"] = json::array();
+            for (auto &dim : *dims) {
+                j["dims"].push_back(dim);
+            }
+        }
+        return j;
+    }
+};
+
+class VarSpecAST : public BaseAST {
+   public:
+    pvStr idents;
+    pAST btype = nullptr;
+    pvpAST initVals = nullptr;
+
+    json toJson() const override {
+        json j;
+        j["type"] = "VarSpecAST";
+        j["idents"] = json::array();
+        for (auto &ident : *idents) {
+            j["idents"].push_back(ident);
+        }
+        j["btype"] = btype->toJson();
+        j["initVals"] = json::array();
+        for (auto &initVal : *initVals) {
+            j["initVals"].push_back(initVal->toJson());
+        }
+        return j;
+    }
+};
+
+class UnaryExpAST : public BaseAST {
+    public:
+    // unary operator, '+' '-' '!' or 'C' for func call
+    char op;
+    pAST p = nullptr;
+    string funcName = "";
+    pvpAST argList = nullptr;
+
+    UnaryExpAST(char _op, BaseAST *ast) {
+        op = _op;
+        p = pAST(ast);
+    }
+    UnaryExpAST(string* _funcName, vpAST *_argList) {
+        op = 'C';
+        funcName = *unique_ptr<string>(_funcName);
+        argList = pvpAST(_argList);
+    }
+
+    json toJson() const override {
+        json j;
+        j["type"] = "UnaryExpAST";
+        j["op"] = op;
+        if (p != nullptr) {
+            j["p"] = p->toJson();
+        }
+        if (funcName != "") {
+            j["funcName"] = funcName;
+        }
+        if (argList != nullptr) {
+            j["argList"] = json::array();
+            for (auto &arg : *argList) {
+                j["argList"].push_back(arg->toJson());
+            }
+        }
+        return j;
+    }
+};
+
+class ForStmtAST : public StmtAST {
+   public:
+    pAST init;
+    pAST cond;
+    pAST step;
+    pAST block;
+
+    json toJson() const override {
+        json j;
+        j["type"] = "ForStmtAST";
+        j["init"] = init->toJson();
+        j["cond"] = cond->toJson();
+        j["step"] = step->toJson();
+        j["block"] = block->toJson();
+        return j;
+    }
+};
+
+class AssignStmtAST : public StmtAST {
+   public:
+    pAST lval;
+    pAST exp;
+
+    json toJson() const override {
+        json j;
+        j["type"] = "AssignStmtAST";
+        j["lval"] = lval->toJson();
+        j["exp"] = exp->toJson();
+        return j;
+    }
+};
+
+class ShortVarDeclAST : public StmtAST {
+   public:
+    pvStr idents;
+    pvpAST initVals = nullptr;
+
+    json toJson() const override {
+        json j;
+        j["type"] = "ShortVarDecl";
+        j["idents"] = json::array();
+        for (auto &ident : *idents) {
+            j["idents"].push_back(ident);
+        }
+        j["initVals"] = json::array();
+        for (auto &initVal : *initVals) {
+            j["initVals"].push_back(initVal->toJson());
+        }
+        return j;
+    }
+};
+
+class LValAST : public BaseAST {
+   public:
+    string ident;
+    pvpAST indexList = nullptr;
+
+    json toJson() const override {
+        json j;
+        j["type"] = "LValAST";
+        j["ident"] = ident;
+        if (indexList != nullptr) {
+            j["indexList"] = json::array();
+            for (auto &index : *indexList) {
+                j["indexList"].push_back(index->toJson());
+            }
+        }
+        return j;
+    }
+};
+
+class BinExpAST : public BaseAST {
+   public:
+    string op;
+    pAST left;
+    pAST right;
+
+    BinExpAST(char _op, BaseAST *ast1, BaseAST *ast2) {
+        op = _op;
+        left = pAST(ast1);
+        right = pAST(ast2);
+    }
+    BinExpAST(string* _op, BaseAST *ast1, BaseAST *ast2) {
+        op = _op;
+        left = pAST(ast1);
+        right = pAST(ast2);
+    }
+
+    json toJson() const override {
+        json j;
+        j["type"] = "BinaryExpAST";
+        j["op"] = op;
+        j["left"] = left->toJson();
+        j["right"] = right->toJson();
         return j;
     }
 };
