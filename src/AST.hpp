@@ -1,5 +1,7 @@
 #pragma once
 
+#include <bits/stdc++.h>
+
 #include <iostream>
 #include <memory>
 #include <string>
@@ -16,13 +18,19 @@ class BaseAST {
     }
 };
 
+using pAST = unique_ptr<BaseAST>;
+using vpAST = vector<pAST>;
+using pvpAST = unique_ptr<vpAST>;
+
 class CompUnitAST : public BaseAST {
    public:
     // 用智能指针管理对象
-    unique_ptr<BaseAST> func_def;
+    pvpAST topDefs;
     ostream &Dump(ostream &os) const override {
         os << "CompUnitAST { ";
-        os << *func_def;
+        for (auto &topDef : *topDefs) {
+            os << *topDef << ", ";
+        }
         os << " }";
         return os;
     }
@@ -30,9 +38,9 @@ class CompUnitAST : public BaseAST {
 
 class FuncDefAST : public BaseAST {
    public:
-    unique_ptr<BaseAST> func_type;
+    pAST func_type;
     string ident;
-    unique_ptr<BaseAST> block;
+    pAST block;
 
     ostream &Dump(ostream &os) const override {
         os << "FuncDefAST { " << ident << ", " << *func_type << ", " << *block
@@ -41,19 +49,19 @@ class FuncDefAST : public BaseAST {
     }
 };
 
-class PackDefAST : public BaseAST {
+class PackClauseAST : public BaseAST {
    public:
     string ident;
 
     ostream &Dump(ostream &os) const override {
-        os << "PackDefAST { " << ident << " }";
+        os << "PackClauseAST { " << ident << " }";
         return os;
     }
 };
 
 class FuncTypeAST : public BaseAST {
    public:
-    string type = "int";
+    string type = "void";  // default void
 
     ostream &Dump(ostream &os) const override {
         os << "FuncTypeAST { " << type << " }";
@@ -63,21 +71,31 @@ class FuncTypeAST : public BaseAST {
 
 class BlockAST : public BaseAST {
    public:
-    unique_ptr<BaseAST> stmt;
+    pvpAST stmts;
 
     ostream &Dump(ostream &os) const override {
-        os << "BlockAST { " << *stmt << " }";
+        os << "BlockAST { ";
+        for (auto &stmt : *stmts) {
+            os << *stmt << ", ";
+        }
+        os << " }";
         return os;
     }
 };
 
-class StmtAST : public BaseAST {
+class StmtListAST : public BaseAST {
    public:
-    // now only support return
-    int number = 0;
+    pvpAST stmts;
+};
+
+class StmtAST : public BaseAST {};
+
+class ReturnStmtAST : public StmtAST {
+   public:
+    pAST exp;
 
     ostream &Dump(ostream &os) const override {
-        os << "StmtAST { return " << number << " }";
+        os << "ReturnStmtAST { " << *exp << " }";
         return os;
     }
 };

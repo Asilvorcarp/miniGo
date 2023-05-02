@@ -54,8 +54,22 @@ Hexadecimal   0[xX][0-9a-fA-F]+
 "continue"      { return CONTINUE; }
 "defer"         { return DEFER; }
 "goto"          { return GOTO; }
+"const"         { return CONST; }
+":="            { return DEFINE; }
+"++"            { return INC; }
+"--"            { return DEC; }
 
 "int"           { return INT; }
+
+"=="            { return EQ; }
+"!="            { return NE; }
+"<"             { return LT; }
+"<="            { return LE; }
+">"             { return GT; }
+">="            { return GE; }
+"&&"            { return AND; }
+"||"            { return OR; }
+"!"             { return NOT; }
 
 {Identifier}    { yylval.str_val = new string(yytext); return IDENT; }
 
