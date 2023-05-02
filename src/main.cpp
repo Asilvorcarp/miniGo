@@ -50,10 +50,8 @@ int main(int argc, const char *argv[]) {
 
     assert(!ret);
 
-    // cout << *ast << endl;
+    // print ast as json
+    cout << *ast << endl;
 
-    auto astJson = ast->toJson();
-    // print the json
-    cout << astJson.dump(4) << endl;
     return 0;
 }

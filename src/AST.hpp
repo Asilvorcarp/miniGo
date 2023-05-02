@@ -15,19 +15,9 @@ using namespace std;
 class BaseAST {
    public:
     virtual ~BaseAST() = default;
-    virtual ostream &Dump(ostream &os) const = 0;
-    static ostream &DumpList(ostream &os, const vector<unique_ptr<BaseAST>> &list) {
-        for (int i = 0; i < list.size(); i++) {
-            os << *list[i];
-            if (i != list.size() - 1) {
-                os << ", ";
-            }
-        }
-        return os;
-    }
     virtual json toJson() const = 0;
     friend ostream &operator<<(ostream &os, const BaseAST &ast) {
-        return ast.Dump(os);
+        return os << ast.toJson().dump(4);
     }
 };
 
@@ -41,12 +31,7 @@ class CompUnitAST : public BaseAST {
    public:
     // 用智能指针管理对象
     pvpAST topDefs;
-    ostream &Dump(ostream &os) const override {
-        os << "CompUnitAST { ";
-        DumpList(os, *topDefs);
-        os << " }";
-        return os;
-    }
+
     json toJson() const override {
         json j;
         j["type"] = "CompUnitAST";
@@ -64,11 +49,6 @@ class FuncDefAST : public BaseAST {
     string ident;
     pAST block;
 
-    ostream &Dump(ostream &os) const override {
-        os << "FuncDefAST { " << ident << ", " << *func_type << ", " << *block
-           << " }";
-        return os;
-    }
     json toJson() const override {
         json j;
         j["type"] = "FuncDefAST";
@@ -83,11 +63,6 @@ class PackClauseAST : public BaseAST {
    public:
     string ident;
 
-    ostream &Dump(ostream &os) const override {
-        os << "PackClauseAST { " << ident << " }";
-        return os;
-    }
-
     json toJson() const override {
         json j;
         j["type"] = "PackClauseAST";
@@ -100,11 +75,6 @@ class FuncTypeAST : public BaseAST {
    public:
     string type = "void";  // default void
 
-    ostream &Dump(ostream &os) const override {
-        os << "FuncTypeAST { " << type << " }";
-        return os;
-    }
-
     json toJson() const override {
         json j;
         j["type"] = "FuncTypeAST";
@@ -116,13 +86,6 @@ class FuncTypeAST : public BaseAST {
 class BlockAST : public BaseAST {
    public:
     pvpAST stmts;
-
-    ostream &Dump(ostream &os) const override {
-        os << "BlockAST { ";
-        DumpList(os, *stmts);
-        os << " }";
-        return os;
-    }
 
     json toJson() const override {
         json j;
@@ -140,11 +103,6 @@ class StmtAST : public BaseAST {};
 class ReturnStmtAST : public StmtAST {
    public:
     pAST exp;
-
-    ostream &Dump(ostream &os) const override {
-        os << "ReturnStmtAST { " << *exp << " }";
-        return os;
-    }
 
     json toJson() const override {
         json j;
@@ -168,18 +126,6 @@ class PrimaryExpAST : public BaseAST {
     PrimaryExpAST(BaseAST *ast, Type _t) {
         t = _t;
         p = pAST(ast);
-    }
-    ostream &Dump(ostream &os) const override {
-        os << "PrimaryExpAST { ";
-        if (t == PAREN) {
-            os << *p;
-        } else if (t == LVAL) {
-            os << *p;
-        } else if (t == NUM) {
-            os << num;
-        }
-        os << " }";
-        return os;
     }
 
     json toJson() const override {
