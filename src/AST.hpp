@@ -13,6 +13,15 @@ class BaseAST {
    public:
     virtual ~BaseAST() = default;
     virtual ostream &Dump(ostream &os) const = 0;
+    static ostream &DumpList(ostream &os, const vector<unique_ptr<BaseAST>> &list) {
+        for (int i = 0; i < list.size(); i++) {
+            os << *list[i];
+            if (i != list.size() - 1) {
+                os << ", ";
+            }
+        }
+        return os;
+    }
     friend ostream &operator<<(ostream &os, const BaseAST &ast) {
         return ast.Dump(os);
     }
@@ -22,15 +31,15 @@ using pAST = unique_ptr<BaseAST>;
 using vpAST = vector<pAST>;
 using pvpAST = unique_ptr<vpAST>;
 
+// dump list with no ending comma
+
 class CompUnitAST : public BaseAST {
    public:
     // 用智能指针管理对象
     pvpAST topDefs;
     ostream &Dump(ostream &os) const override {
         os << "CompUnitAST { ";
-        for (auto &topDef : *topDefs) {
-            os << *topDef << ", ";
-        }
+        DumpList(os, *topDefs);
         os << " }";
         return os;
     }
@@ -75,9 +84,7 @@ class BlockAST : public BaseAST {
 
     ostream &Dump(ostream &os) const override {
         os << "BlockAST { ";
-        for (auto &stmt : *stmts) {
-            os << *stmt << ", ";
-        }
+        DumpList(os, *stmts);
         os << " }";
         return os;
     }
@@ -107,21 +114,21 @@ class PrimaryExpAST : public BaseAST {
     pAST p;
     int num;
 
-    PrimaryExpAST(int _num){
+    PrimaryExpAST(int _num) {
         t = NUM;
         num = _num;
     }
-    PrimaryExpAST(BaseAST* ast, Type _t){
+    PrimaryExpAST(BaseAST *ast, Type _t) {
         t = _t;
         p = pAST(ast);
     }
     ostream &Dump(ostream &os) const override {
         os << "PrimaryExpAST { ";
-        if(t == PAREN){
+        if (t == PAREN) {
             os << *p;
-        }else if(t == LVAL){
+        } else if (t == LVAL) {
             os << *p;
-        }else if(t == NUM){
+        } else if (t == NUM) {
             os << num;
         }
         os << " }";
