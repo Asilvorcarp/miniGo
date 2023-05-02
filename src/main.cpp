@@ -42,7 +42,6 @@ int main(int argc, const char *argv[]) {
     yyin = fopen(input.c_str(), "r");
     assert(yyin);
 
-    // 调用 parser 函数, parser 函数会进一步调用 lexer 解析输入文件的
     unique_ptr<BaseAST> ast;
 
     cout<<">> parsing... "<<endl;
@@ -51,7 +50,10 @@ int main(int argc, const char *argv[]) {
 
     assert(!ret);
 
-    // 输出解析得到的 AST, 其实就是个字符串
-    cout << *ast << endl;
+    // cout << *ast << endl;
+
+    auto astJson = ast->toJson();
+    // print the json
+    cout << astJson.dump(4) << endl;
     return 0;
 }

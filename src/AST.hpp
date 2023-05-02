@@ -6,6 +6,9 @@
 #include <memory>
 #include <string>
 
+#include <json.hpp>
+
+using json = nlohmann::json;
 using namespace std;
 
 // 所有 AST 的基类
@@ -22,6 +25,7 @@ class BaseAST {
         }
         return os;
     }
+    virtual json toJson() const = 0;
     friend ostream &operator<<(ostream &os, const BaseAST &ast) {
         return ast.Dump(os);
     }
@@ -43,6 +47,15 @@ class CompUnitAST : public BaseAST {
         os << " }";
         return os;
     }
+    json toJson() const override {
+        json j;
+        j["type"] = "CompUnitAST";
+        j["topDefs"] = json::array();
+        for (auto &topDef : *topDefs) {
+            j["topDefs"].push_back(topDef->toJson());
+        }
+        return j;
+    }
 };
 
 class FuncDefAST : public BaseAST {
@@ -56,6 +69,14 @@ class FuncDefAST : public BaseAST {
            << " }";
         return os;
     }
+    json toJson() const override {
+        json j;
+        j["type"] = "FuncDefAST";
+        j["func_type"] = func_type->toJson();
+        j["ident"] = ident;
+        j["block"] = block->toJson();
+        return j;
+    }
 };
 
 class PackClauseAST : public BaseAST {
@@ -66,6 +87,13 @@ class PackClauseAST : public BaseAST {
         os << "PackClauseAST { " << ident << " }";
         return os;
     }
+
+    json toJson() const override {
+        json j;
+        j["type"] = "PackClauseAST";
+        j["ident"] = ident;
+        return j;
+    }
 };
 
 class FuncTypeAST : public BaseAST {
@@ -75,6 +103,13 @@ class FuncTypeAST : public BaseAST {
     ostream &Dump(ostream &os) const override {
         os << "FuncTypeAST { " << type << " }";
         return os;
+    }
+
+    json toJson() const override {
+        json j;
+        j["type"] = "FuncTypeAST";
+        j["type"] = type;
+        return j;
     }
 };
 
@@ -88,11 +123,16 @@ class BlockAST : public BaseAST {
         os << " }";
         return os;
     }
-};
 
-class StmtListAST : public BaseAST {
-   public:
-    pvpAST stmts;
+    json toJson() const override {
+        json j;
+        j["type"] = "BlockAST";
+        j["stmts"] = json::array();
+        for (auto &stmt : *stmts) {
+            j["stmts"].push_back(stmt->toJson());
+        }
+        return j;
+    }
 };
 
 class StmtAST : public BaseAST {};
@@ -104,6 +144,13 @@ class ReturnStmtAST : public StmtAST {
     ostream &Dump(ostream &os) const override {
         os << "ReturnStmtAST { " << *exp << " }";
         return os;
+    }
+
+    json toJson() const override {
+        json j;
+        j["type"] = "ReturnStmtAST";
+        j["exp"] = exp->toJson();
+        return j;
     }
 };
 
@@ -133,5 +180,18 @@ class PrimaryExpAST : public BaseAST {
         }
         os << " }";
         return os;
+    }
+
+    json toJson() const override {
+        json j;
+        j["type"] = "PrimaryExpAST";
+        if (t == PAREN) {
+            j["p"] = p->toJson();
+        } else if (t == LVAL) {
+            j["p"] = p->toJson();
+        } else if (t == NUM) {
+            j["num"] = num;
+        }
+        return j;
     }
 };
