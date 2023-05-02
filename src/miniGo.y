@@ -58,6 +58,15 @@ using namespace std;
 // 而 parser 一旦解析完 CompUnit, 就说明所有的 token 都被解析了, 即解析结束了
 // 此时我们应该把 FuncDef 返回的结果收集起来, 作为 AST 传给调用 parser 的函数
 // $1 指代规则里第一个符号的返回值, 也就是 FuncDef 的返回值
+// A source file is a compilation unit
+// !! must be the first symbol
+CompUnit : PackClause TopLevelDeclList {
+    // ignore package
+    auto comp_unit = make_unique<CompUnitAST>();
+    comp_unit->topDefs = pvpAST($2);
+    ast = std::move(comp_unit);
+};
+
 TopLevelDecl : Decl | FuncDef {
     $$ = $1;
 };
@@ -76,13 +85,6 @@ PackClause : PACKAGE IDENT {
     auto ast = new PackClauseAST();
     ast->ident = *unique_ptr<string>($2);
     $$ = ast;
-};
-// A source file is a compilation unit
-CompUnit : PackClause TopLevelDeclList {
-    // ignore package
-    auto comp_unit = make_unique<CompUnitAST>();
-    comp_unit->top_defs = pAST($2);
-    ast = move(comp_unit);
 };
 
 // FuncDef ::= FuncType IDENT '(' ')' Block;
@@ -314,4 +316,5 @@ void yyerror(pAST &ast, const char *s) {
   cerr << "error: " << s << endl;
 }
 
-// clear && ./build.sh && build/compiler debug/return.go
+// run with trace
+// make && ./miniGo.out ../debug/return.go && make clean

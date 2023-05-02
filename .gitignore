@@ -1,9 +1,8 @@
 *.DS_Store
 /build
 
-*.yy.c
 *.out
-*.tab.c
-*.tab.h
+*.yy.*
+*.tab.*
 *.output
 *.exe
