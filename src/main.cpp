@@ -40,9 +40,9 @@ int main(int argc, const char *argv[]) {
     // 调用 parser 函数, parser 函数会进一步调用 lexer 解析输入文件的
     unique_ptr<BaseAST> ast;
 
-    cout<<">> parsing... ";
+    cout<<">> parsing... "<<endl;
     auto ret = yyparse(ast);
-    cout<<"done"<<endl;
+    cout<<">> done"<<endl;
 
     assert(!ret);
 

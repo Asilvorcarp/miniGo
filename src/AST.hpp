@@ -99,3 +99,32 @@ class ReturnStmtAST : public StmtAST {
         return os;
     }
 };
+
+class PrimaryExpAST : public BaseAST {
+   public:
+    enum Type { PAREN, LVAL, NUM };
+    Type t;
+    pAST p;
+    int num;
+
+    PrimaryExpAST(int _num){
+        t = NUM;
+        num = _num;
+    }
+    PrimaryExpAST(BaseAST* ast, Type _t){
+        t = _t;
+        p = pAST(ast);
+    }
+    ostream &Dump(ostream &os) const override {
+        os << "PrimaryExpAST { ";
+        if(t == PAREN){
+            os << *p;
+        }else if(t == LVAL){
+            os << *p;
+        }else if(t == NUM){
+            os << num;
+        }
+        os << " }";
+        return os;
+    }
+};

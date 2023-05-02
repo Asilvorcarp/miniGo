@@ -15,7 +15,7 @@
 
 // 声明 lexer 函数和错误处理函数
 int yylex();
-void yyerror(std::pAST &ast, const char *s);
+void yyerror(pAST &ast, const char *s);
 
 using namespace std;
 
@@ -24,7 +24,7 @@ using namespace std;
 // 定义 parser 函数和错误处理函数的附加参数
 // 我们需要返回一个字符串作为 AST, 所以我们把附加参数定义成字符串的智能指针
 // 解析完成后, 我们要手动修改这个参数, 把它设置成解析得到的字符串
-%parse-param { std::pAST &ast }
+%parse-param { pAST &ast }
 
 // yylval 的定义, 我们把它定义成了一个联合体 (union)
 // 因为 token 的值有的是字符串指针, 有的是整数
@@ -32,7 +32,7 @@ using namespace std;
 // 至于为什么要用字符串指针而不直接用 string 或者 unique_ptr<string>?
 // 请自行 STFW 在 union 里写一个带析构函数的类会出现什么情况
 %union {
-  std::string *str_val;
+  string *str_val;
   int int_val;
   BaseAST *ast_val;
   vpAST *ast_list;
@@ -47,7 +47,7 @@ using namespace std;
 %token <int_val> INT_CONST
 
 // 非终结符的类型定义
-%type <ast_val> PackClause FuncDef FuncType Block Stmt ReturnStmt Exp ExpStmt IncDecStmt AssignStmt ShortVarDecl LVal IDs InitVals FuncFParam BType TopLevelDecl PrimaryExp
+%type <ast_val> PackClause FuncDef FuncType Block Stmt ReturnStmt Exp ExpStmt IncDecStmt AssignStmt ShortVarDecl LVal IDs InitVals FuncFParam BType TopLevelDecl PrimaryExp UnaryExp MulExp AddExp RelExp EqExp LAndExp LOrExp ConstExp
 %type <int_val> Number
 %type <ast_list> TopLevelDeclList FuncFParamList StmtList ArgList
 
@@ -133,7 +133,7 @@ FuncType : /* empty */ {
 
 Block : '{' StmtList '}' {
     auto ast = new BlockAST();
-    ast->stmts = $2->stmts;
+    ast->stmts = pvpAST($2);
     $$ = ast;
 };
 
@@ -245,21 +245,21 @@ ConstIndex : '[' ConstExp ']';
 ConstIndexs : ConstIndex | ConstIndexs ConstIndex;
 BType : INT | INT ConstIndexs;
 
-Number
-  : INT_CONST {
+Number : INT_CONST {
     $$ = $1;
-  };
-
-Exp : LOrExp;
+};
+Exp : LOrExp {
+    $$ = $1;
+};
 LVal : IDENT {
 } | LVal '[' Exp ']' {
 };
 PrimaryExp : '(' Exp ')' {
+    $$ = new PrimaryExpAST($2, PrimaryExpAST::Type::PAREN);
 } | LVal {
+    $$ = new PrimaryExpAST($1, PrimaryExpAST::Type::LVAL);
 } | Number{
-    auto ast = new PrimaryExpAST();
-    ast->num = $1;
-    $$ = ast;
+    $$ = new PrimaryExpAST($1);
 };
 UnaryExp : PrimaryExp  {
     $$ = $1;
@@ -301,6 +301,7 @@ LOrExp: LAndExp {
     $$ = $1;
 } | LOrExp OR LAndExp;
 ConstExp: Exp {
+    // TODO judge exp is const, by get value?
     $$ = $1;
 };
 
@@ -312,3 +313,5 @@ ConstExp: Exp {
 void yyerror(pAST &ast, const char *s) {
   cerr << "error: " << s << endl;
 }
+
+// clear && ./build.sh && build/compiler debug/return.go

@@ -9,6 +9,7 @@
 // 因为最后要生成 C/C++ 文件, 实现主要逻辑的部分都是用 C/C++ 写的
 // 难免会用到头文件, 所以通常头文件和一些全局声明/定义写在这里
 
+#include <iostream>
 #include <cstdlib>
 #include <string>
 
