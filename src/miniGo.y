@@ -255,7 +255,7 @@ ForStmt : FOR Block { // always
     auto ast = new ForStmtAST();
     ast->init = pAST($2);
     ast->cond = pAST($4);
-    ast->post = pAST($6);
+    ast->step = pAST($6);
     ast->block = pAST($7);
     $$ = ast;
 };
@@ -266,6 +266,10 @@ Stmt : Decl {
 } | ReturnStmt {
     $$ = $1;
 } | SimpleStmt {
+    $$ = $1;
+} | ForStmt {
+    $$ = $1;
+} | Block {
     $$ = $1;
 };
 
