@@ -236,9 +236,9 @@ class UnaryExpAST : public BaseAST {
     }
 
     string type() const override {
-        // if(op=='C'){
-        //     return "FuncCallAST";
-        // }
+        if(op=='C'){
+            return "CallAST";
+        }
         return "UnaryExpAST";
     }
     json toJson() const override {

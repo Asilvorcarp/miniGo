@@ -28,9 +28,9 @@ class Compiler {
     Compiler() : scope(Scope::Universe()) {}
     ~Compiler() {}
 
-    void genHeader(CompUnitAST* file, ostream& os);
-    void compileFile(CompUnitAST* file, ostream& os);
-    void genMain(CompUnitAST* file, ostream& os);
+    void genHeader(ostream& os, CompUnitAST* file);
+    void compileFile(ostream& os, CompUnitAST* file);
+    void genMain(ostream& os, CompUnitAST* file);
 
     string Compile(CompUnitAST* _file) {
         stringstream ss;
@@ -48,12 +48,12 @@ class Compiler {
     void leaveScope() { scope = scope->Outer; }
     void restoreScope(Scope* s) { scope = s; }
 
-    void genHeader(CompUnitAST* file, ostream& os) {
+    void genHeader(ostream& os, CompUnitAST* file) {
         os << "; package " << file->packageName << endl;
         os << Header << endl;
     }
 
-    void genMain(CompUnitAST* file, ostream& os) {
+    void genMain(ostream& os, CompUnitAST* file) {
         if (file->packageName != "main") {
             return;
         }
@@ -65,12 +65,23 @@ class Compiler {
         }
     }
 
-    void genInit(CompUnitAST* file, ostream& os) {
+    void compileFile(ostream& os, CompUnitAST* file);
+    void compileFunc(ostream& os, CompUnitAST* file, FuncDefAST* fn);
+    void compileStmt(ostream& os, StmtAST* stmt);
+    void compileStmt_assign(ostream& os, AssignStmtAST* stmt);
+    string compileExpr(ostream& os, PrimaryExpAST expr);
+    string genId();
+    string genLabelId(string name);
+
+    void genInit(ostream& os, CompUnitAST* file) {
         os << "define i32 @ugo_" << file->packageName << "_init() {\n";
 
         for (auto& g : file->Globals) {
             string localName = "0";
-            // doing TODO
+            if (g->initVals->size() > 0) {
+                // TODO doing
+                // localName = compileExpr(os, *(*g->initVals)[0]);
+            }
         }
     }
 };
