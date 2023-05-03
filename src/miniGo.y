@@ -50,10 +50,10 @@ using namespace std;
 %token <char_val> '+' '-' '*' '/' '%' '!' '&' '|' '^' '<' '>' '='
 
 // 非终结符的类型定义
-%type <ast_val> PackClause FuncDef FuncType Block Stmt ReturnStmt Exp ExpStmt IncDecStmt AssignStmt ShortVarDecl LVal FuncFParam BType TopLevelDecl PrimaryExp UnaryExp MulExp AddExp RelExp EqExp LAndExp LOrExp ConstExp VarDecl ConstDecl VarSpec ConstSpec ForStmt SimpleStmt Decl IfStmt InitVal ConstInitVal
+%type <ast_val> FuncDef FuncType Block Stmt ReturnStmt Exp ExpStmt IncDecStmt AssignStmt ShortVarDecl LVal FuncFParam BType TopLevelDecl PrimaryExp UnaryExp MulExp AddExp RelExp EqExp LAndExp LOrExp ConstExp VarDecl ConstDecl VarSpec ConstSpec ForStmt SimpleStmt Decl IfStmt InitVal ConstInitVal
 %type <int_val> Number
 %type <char_val> AddOp MulOp UnaryOp
-%type <str_val> RelOp EqOp
+%type <str_val> RelOp EqOp PackClause
 %type <ast_list> TopLevelDeclList FuncFParamList StmtList ArgList InitVals
 %type <str_list> IDs
 
@@ -67,8 +67,8 @@ using namespace std;
 // A source file is a compilation unit
 // !! must be the first symbol
 CompUnit : PackClause TopLevelDeclList {
-    // ignore package
     auto comp_unit = make_unique<CompUnitAST>();
+    comp_unit->packageName = *unique_ptr<string>($1);
     comp_unit->topDefs = pvpAST($2);
     ast = std::move(comp_unit);
 };
@@ -88,9 +88,7 @@ TopLevelDeclList : /* empty */ {
     $$ = l;
 };
 PackClause : PACKAGE IDENT {
-    auto ast = new PackClauseAST();
-    ast->ident = *unique_ptr<string>($2);
-    $$ = ast;
+    $$ = $2;
 };
 
 // FuncDef ::= FuncType IDENT '(' ')' Block;
@@ -177,16 +175,12 @@ ShortVarDecl : IDs DEFINE InitVals {
     ast->initVals = pvpAST($3);
     $$ = ast;
 };
-SimpleStmt : /* empty stmt */ {
-} | ExpStmt {
-    $$ = $1;
-} | IncDecStmt {
-    $$ = $1;
-} | AssignStmt {
-    $$ = $1;
-} | ShortVarDecl {
-    $$ = $1;
-};
+SimpleStmt : /* empty stmt */ {$$ = new EmptyStmtAST();} 
+           | ExpStmt
+           | IncDecStmt 
+           | AssignStmt 
+           | ShortVarDecl 
+           ;
 
 /*
 Statement =
@@ -197,25 +191,66 @@ Statement =
 */
 //IfStmt = "if" [ SimpleStmt ";" ] Expression Block [ "else" ( IfStmt | Block ) ] .
 IfStmt : IF Exp Block {
-    // TODO
-} | IF Exp Block ELSE IfStmt {
-    // TODO
+    auto ast = new IfStmtAST();
+    ast->t = IfStmtAST::Type::If;
+    ast->cond = pAST($2);
+    ast->thenBlock = pAST($3);
+    $$ = ast;
 } | IF Exp Block ELSE Block {
-    // TODO
+    auto ast = new IfStmtAST();
+    ast->t = IfStmtAST::Type::IfElse;
+    ast->cond = pAST($2);
+    ast->thenBlock = pAST($3);
+    ast->elseBlockStmt = pAST($5);
+    $$ = ast;
+} | IF Exp Block ELSE IfStmt {
+    auto ast = new IfStmtAST();
+    ast->t = IfStmtAST::Type::IfElseIf;
+    ast->cond = pAST($2);
+    ast->thenBlock = pAST($3);
+    ast->elseBlockStmt = pAST($5);
+    $$ = ast;
 } | IF SimpleStmt ';' Exp Block {
-    // TODO
-} | IF SimpleStmt ';' Exp Block ELSE IfStmt {
-    // TODO
+    auto ast = new IfStmtAST();
+    ast->t = IfStmtAST::Type::If;
+    ast->beforeStmt = pAST($2);
+    ast->cond = pAST($4);
+    ast->thenBlock = pAST($5);
+    $$ = ast;
 } | IF SimpleStmt ';' Exp Block ELSE Block {
-    // TODO
+    auto ast = new IfStmtAST();
+    ast->t = IfStmtAST::Type::IfElse;
+    ast->beforeStmt = pAST($2);
+    ast->cond = pAST($4);
+    ast->thenBlock = pAST($5);
+    ast->elseBlockStmt = pAST($7);
+    $$ = ast;
+} | IF SimpleStmt ';' Exp Block ELSE IfStmt {
+    auto ast = new IfStmtAST();
+    ast->t = IfStmtAST::Type::IfElseIf;
+    ast->beforeStmt = pAST($2);
+    ast->cond = pAST($4);
+    ast->thenBlock = pAST($5);
+    ast->elseBlockStmt = pAST($7);
+    $$ = ast;
 };
 ReturnStmt : RETURN Exp {
     auto ast = new ReturnStmtAST();
     ast->exp = pAST($2);
     $$ = ast;
+} | RETURN {
+    auto ast = new ReturnStmtAST();
+    $$ = ast;
 };
 ForStmt : FOR Block { // always
+    auto ast = new ForStmtAST();
+    ast->block = pAST($2);
+    $$ = ast;
 } | FOR Exp Block { // while
+    auto ast = new ForStmtAST();
+    ast->cond = pAST($2);
+    ast->block = pAST($3);
+    $$ = ast;
 } | FOR SimpleStmt ';' Exp ';' SimpleStmt Block { // for
     auto ast = new ForStmtAST();
     ast->init = pAST($2);
@@ -292,7 +327,7 @@ ConstDecl : CONST ConstSpec {
 };
 ConstSpec : IDs BType '=' ConstInitVals {
 }| IDs '=' ConstInitVals {
-}| IDs;
+};
 // TODO TypeDecl
 Decl : VarDecl | ConstDecl;
 ConstIndex : '[' ConstExp ']';
@@ -360,23 +395,32 @@ MulOp: '*' | '/' | '%';
 AddExp: MulExp {
     $$ = $1;
 } | AddExp AddOp MulExp {
+    $$ = new BinExpAST($2, $1, $3);
 };
 AddOp: '+' | '-';
 RelExp: AddExp {
     $$ = $1;
-} | RelExp RelOp AddExp;
+} | RelExp RelOp AddExp {
+    $$ = new BinExpAST($2, $1, $3);
+};
 RelOp: '<' {$$=new string("<");} | '>' {$$=new string(">");} 
      | LE | GE;
 EqExp: RelExp {
     $$ = $1;
-} | EqExp EqOp RelExp;
+} | EqExp EqOp RelExp {
+    $$ = new BinExpAST($2, $1, $3);
+};
 EqOp: EQ | NE;
 LAndExp: EqExp {
     $$ = $1;
-} | LAndExp AND EqExp;
+} | LAndExp AND EqExp {
+    $$ = new BinExpAST($2, $1, $3);
+};
 LOrExp: LAndExp {
-    $$ = $1;
-} | LOrExp OR LAndExp;
+    $$ = $1; // TODO remove all $$ = $1; shit
+} | LOrExp OR LAndExp {
+    $$ = new BinExpAST($2, $1, $3);
+};
 ConstExp: Exp {
     // TODO judge exp is const, by get value?
     $$ = $1;

@@ -31,12 +31,13 @@ using pvStr = unique_ptr<vector<string>>;
 
 class CompUnitAST : public BaseAST {
    public:
-    // 用智能指针管理对象
+    string packageName;
     pvpAST topDefs;
 
     json toJson() const override {
         json j;
         j["type"] = "CompUnitAST";
+        j["packageName"] = packageName;
         j["topDefs"] = json::array();
         for (auto &topDef : *topDefs) {
             j["topDefs"].push_back(topDef->toJson());
@@ -57,18 +58,6 @@ class FuncDefAST : public BaseAST {
         j["func_type"] = func_type->toJson();
         j["ident"] = ident;
         j["block"] = block->toJson();
-        return j;
-    }
-};
-
-class PackClauseAST : public BaseAST {
-   public:
-    string ident;
-
-    json toJson() const override {
-        json j;
-        j["type"] = "PackClauseAST";
-        j["ident"] = ident;
         return j;
     }
 };
@@ -102,14 +91,25 @@ class BlockAST : public BaseAST {
 
 class StmtAST : public BaseAST {};
 
+class EmptyStmtAST : public StmtAST {
+   public:
+    json toJson() const override {
+        json j;
+        j["type"] = "EmptyStmtAST";
+        return j;
+    }
+};
+
 class ReturnStmtAST : public StmtAST {
    public:
-    pAST exp;
+    pAST exp = nullptr;
 
     json toJson() const override {
         json j;
         j["type"] = "ReturnStmtAST";
-        j["exp"] = exp->toJson();
+        if (exp != nullptr) {
+            j["exp"] = exp->toJson();
+        }
         return j;
     }
 };
@@ -176,7 +176,9 @@ class VarSpecAST : public BaseAST {
         for (auto &ident : *idents) {
             j["idents"].push_back(ident);
         }
-        j["btype"] = btype->toJson();
+        if (btype != nullptr) {
+            j["btype"] = btype->toJson();
+        }
         j["initVals"] = json::array();
         for (auto &initVal : *initVals) {
             j["initVals"].push_back(initVal->toJson());
@@ -225,9 +227,9 @@ class UnaryExpAST : public BaseAST {
 
 class ForStmtAST : public StmtAST {
    public:
-    pAST init;
-    pAST cond;
-    pAST step;
+    pAST init = make_unique<EmptyStmtAST>();
+    pAST cond = make_unique<PrimaryExpAST>(1);
+    pAST step = make_unique<EmptyStmtAST>();
     pAST block;
 
     json toJson() const override {
@@ -258,7 +260,7 @@ class AssignStmtAST : public StmtAST {
 class ShortVarDeclAST : public StmtAST {
    public:
     pvStr idents;
-    pvpAST initVals = nullptr;
+    pvpAST initVals;
 
     json toJson() const override {
         json j;
@@ -309,7 +311,7 @@ class BinExpAST : public BaseAST {
     pAST right;
 
     BinExpAST(char _op, BaseAST *ast1, BaseAST *ast2) {
-        op = _op;
+        op = _op; // TODO test
         left = pAST(ast1);
         right = pAST(ast2);
     }
@@ -325,6 +327,31 @@ class BinExpAST : public BaseAST {
         j["op"] = op;
         j["left"] = left->toJson();
         j["right"] = right->toJson();
+        return j;
+    }
+};
+
+class IfStmtAST : public StmtAST {
+   public:
+    enum Type { If, IfElse, IfElseIf } t;
+    pAST beforeStmt = nullptr;
+    pAST cond;
+    pAST thenBlock;
+    // else block or if stmt
+    pAST elseBlockStmt = nullptr;
+
+    json toJson() const override {
+        json j;
+        j["type"] = "IfStmtAST";
+        j["t"] = t;
+        if (beforeStmt != nullptr) {
+            j["beforeStmt"] = beforeStmt->toJson();
+        }
+        j["cond"] = cond->toJson();
+        j["thenBlock"] = thenBlock->toJson();
+        if (elseBlockStmt != nullptr) {
+            j["elseBlockStmt"] = elseBlockStmt->toJson();
+        }
         return j;
     }
 };
