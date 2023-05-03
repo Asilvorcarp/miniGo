@@ -6,5 +6,6 @@
 *.tab.*
 *.output
 *.exe
+*.o.ll
 
 *.o.json

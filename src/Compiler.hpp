@@ -25,7 +25,7 @@ class Compiler {
     Scope* scope;
     int nextId;
 
-    Compiler() : scope(Scope::Universe()) {}
+    Compiler() : scope(Scope::Universe()), nextId(0) {}
     ~Compiler() {}
 
     string Compile(CompUnitAST* _file) {
@@ -163,7 +163,7 @@ class Compiler {
                 localName = compileExpr(os, (*stmt0->initVals)[0]);
             }
             firstId = (*stmt0->idents)[0];
-            ss << "%%local_" << firstId << ".pop.0";
+            ss << "%local_" << firstId << ".pos.0";
             mangledName = ss.str();
             scope->Insert(new Object(firstId, mangledName, stmt0));
             os << "\t" << mangledName << " = alloca i32, align 4\n";
@@ -321,7 +321,7 @@ class Compiler {
                 if (!scope->HasName(tar->ident)) {
                     stringstream ss;
                     // TODO !!! can we remove pos ??? !!!
-                    ss << "%%local_" << tar->ident << ".pos.0";
+                    ss << "%local_" << tar->ident << ".pos.0";
                     auto mangledName = ss.str();
                     scope->Insert(
                         new Object(tar->ident, mangledName, target.get()));

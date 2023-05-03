@@ -60,6 +60,11 @@ int main(int argc, const char *argv[]) {
     
     cout << ">> ll: " << endl;
     cout << ll << endl;
+    
+    // print ll to file output
+    FILE* fp = fopen(output.c_str(), "w");
+    fprintf(fp, "%s", ll.c_str());
+    fclose(fp);
 
     return 0;
 }
