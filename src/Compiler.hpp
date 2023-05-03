@@ -46,7 +46,7 @@ class Compiler {
 
     void genHeader(ostream& os, CompUnitAST* file) {
         os << "; package " << file->packageName << endl;
-        os << Header << endl;
+        os << Header;
     }
 
     void genMain(ostream& os, CompUnitAST* file) {
@@ -375,83 +375,74 @@ class Compiler {
         } else if (expr->type() == TType::BinExpT) {
             auto exp2 = reinterpret_cast<BinExpAST*>(expr);
             localName = genId();
+            auto left = compileExpr(os, exp2->left);
+            auto right = compileExpr(os, exp2->right);
             switch (exp2->op) {
                 case BinExpAST::Op::ADD:
                     os << "\t" << localName << " = "
                        << "add"
-                       << " i32 " << compileExpr(os, exp2->left) << ", "
-                       << compileExpr(os, exp2->right) << endl;
+                       << " i32 " << left << ", " << right << endl;
                     return localName;
                     break;
                 case BinExpAST::Op::SUB:
                     os << "\t" << localName << " = "
                        << "sub"
-                       << " i32 " << compileExpr(os, exp2->left) << ", "
-                       << compileExpr(os, exp2->right) << endl;
+                       << " i32 " << left << ", " << right << endl;
                     return localName;
                     break;
                 case BinExpAST::Op::MUL:
                     os << "\t" << localName << " = "
                        << "mul"
-                       << " i32 " << compileExpr(os, exp2->left) << ", "
-                       << compileExpr(os, exp2->right) << endl;
+                       << " i32 " << left << ", " << right << endl;
                     return localName;
                     break;
                 case BinExpAST::Op::DIV:
                     os << "\t" << localName << " = "
                        << "div"
-                       << " i32 " << compileExpr(os, exp2->left) << ", "
-                       << compileExpr(os, exp2->right) << endl;
+                       << " i32 " << left << ", " << right << endl;
                     return localName;
                     break;
                 case BinExpAST::Op::MOD:
                     os << "\t" << localName << " = "
                        << "srem"
-                       << " i32 " << compileExpr(os, exp2->left) << ", "
-                       << compileExpr(os, exp2->right) << endl;
+                       << " i32 " << left << ", " << right << endl;
                     return localName;
                     break;
                     // https://llvm.org/docs/LangRef.html#icmp-instruction
                 case BinExpAST::Op::EQ:
                     os << "\t" << localName << " = "
                        << "icmp eq"
-                       << " i32 " << compileExpr(os, exp2->left) << ", "
-                       << compileExpr(os, exp2->right) << endl;
+                       << " i32 " << left << ", " << right << endl;
                     return localName;
                     break;
                 case BinExpAST::Op::NE:
                     os << "\t" << localName << " = "
                        << "icmp ne"
-                       << " i32 " << compileExpr(os, exp2->left) << ", "
-                       << compileExpr(os, exp2->right) << endl;
+                       << " i32 " << left << ", " << right << endl;
                     return localName;
                     break;
                 case BinExpAST::Op::LT:
                     os << "\t" << localName << " = "
                        << "icmp slt"
-                       << " i32 " << compileExpr(os, exp2->left) << ", "
-                       << compileExpr(os, exp2->right) << endl;
+                       << " i32 " << left << ", " << right << endl;
                     return localName;
                     break;
                 case BinExpAST::Op::LE:
                     os << "\t" << localName << " = "
                        << "icmp sle"
-                       << " i32 " << compileExpr(os, exp2->left) << ", "
-                       << compileExpr(os, exp2->right) << endl;
+                       << " i32 " << left << ", " << right << endl;
                     return localName;
                     break;
                 case BinExpAST::Op::GT:
                     os << "\t" << localName << " = "
                        << "icmp sgt"
-                       << " i32 " << compileExpr(os, exp2->left) << ", "
-                       << compileExpr(os, exp2->right) << endl;
+                       << " i32 " << left << ", " << right << endl;
                     return localName;
                     break;
                 case BinExpAST::Op::GE:
                     os << "\t" << localName << " = "
                        << "icmp sge"
-                       << " i32 " << compileExpr(os, exp2->left) << ", "
-                       << compileExpr(os, exp2->right) << endl;
+                       << " i32 " << left << ", " << right << endl;
                     return localName;
                     break;
                 default:
@@ -463,11 +454,12 @@ class Compiler {
             auto exp3 = reinterpret_cast<UnaryExpAST*>(expr);
             if (exp3->op == '-') {
                 localName = genId();
+                auto child = compileExpr(os, exp3->p);
                 os << "\t" << localName << " = "
                    << "sub"
                    << " i32 "
                    << "0"
-                   << ", " << compileExpr(os, exp3->p) << endl;
+                   << ", " << child << endl;
                 return localName;
             }
             return compileExpr(os, exp3->p);
@@ -485,9 +477,9 @@ class Compiler {
                 assert(false);
             }
             localName = genId();
+            auto arg0 = compileExpr(os, (*exp5->argList)[0]);
             os << "\t" << localName << " = call i32(i32) " << funcName
-               << "(i32 "  // TODO test this
-               << compileExpr(os, (*exp5->argList)[0]) << ")" << endl;
+               << "(i32 " << arg0 << ")" << endl;
             return localName;
         } else {
             cerr << "compileExpr: unknown type of ExpAST" << endl;
