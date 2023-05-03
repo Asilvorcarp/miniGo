@@ -5,6 +5,7 @@
 #include <string>
 
 #include <AST.hpp>
+#include <Compiler.hpp>
 
 using namespace std;
 
@@ -52,6 +53,13 @@ int main(int argc, const char *argv[]) {
 
     // print ast as json
     cout << *ast << endl;
+
+    auto compiler = Compiler();
+    auto unit = reinterpret_cast<CompUnitAST*>(ast.get());
+    string ll = compiler.Compile(unit);
+    
+    cout << ">> ll: " << endl;
+    cout << ll << endl;
 
     return 0;
 }
