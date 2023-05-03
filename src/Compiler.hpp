@@ -28,10 +28,6 @@ class Compiler {
     Compiler() : scope(Scope::Universe()) {}
     ~Compiler() {}
 
-    void genHeader(ostream& os, CompUnitAST* file);
-    void compileFile(ostream& os, CompUnitAST* file);
-    void genMain(ostream& os, CompUnitAST* file);
-
     string Compile(CompUnitAST* _file) {
         stringstream ss;
 
@@ -64,14 +60,6 @@ class Compiler {
             }
         }
     }
-
-    void compileFile(ostream& os, CompUnitAST* file);
-    void compileFunc(ostream& os, CompUnitAST* file, FuncDefAST* fn);
-    void compileStmt(ostream& os, pAST& _stmt);
-    // stmt: *ShortVarDeclAST
-    void compileStmt_assign(ostream& os, pAST& _stmt);
-    // expr: *ExpAST
-    string compileExpr(ostream& os, pAST& _expr);
 
     string genId() {
         stringstream ss;
@@ -167,161 +155,153 @@ class Compiler {
         string ifInit, ifCond, ifBody, ifElse, ifEnd;
         string forInit, forCond, forBody, forPost, forEnd;
         static int thePos = 0;
-        switch (stmt->type()) {
-            case TType::VarSpecT:
-                // TODO now only support one spec
-                auto stmt0 = reinterpret_cast<VarSpecAST*>(stmt);
-                localName = "0";
-                if (stmt0->initVals->size() > 0) {
-                    localName = compileExpr(os, (*stmt0->initVals)[0]);
+        if (stmt->type() == TType::VarSpecT) {
+            // TODO now only support one spec
+            auto stmt0 = reinterpret_cast<VarSpecAST*>(stmt);
+            localName = "0";
+            if (stmt0->initVals->size() > 0) {
+                localName = compileExpr(os, (*stmt0->initVals)[0]);
+            }
+            firstId = (*stmt0->idents)[0];
+            ss << "%%local_" << firstId << ".pop.0";
+            mangledName = ss.str();
+            scope->Insert(new Object(firstId, mangledName, stmt0));
+            os << "\t" << mangledName << " = alloca i32, align 4\n";
+            os << "\tstore i32 " << localName << ", i32* " << mangledName
+               << "\n";
+        } else if (stmt->type() == TType::ShortVarDeclT) {
+            compileStmt_assign(os, _stmt);
+        } else if (stmt->type() == TType::IfStmtT) {
+            auto stmt1 = reinterpret_cast<IfStmtAST*>(stmt);
+            auto ifre1 = scope;
+            enterScope();
+            ss << thePos++;
+            ifInit = genLabelId("if.init.line" + ss.str());
+            ifCond = genLabelId("if.cond.line" + ss.str());
+            ifBody = genLabelId("if.body.line" + ss.str());
+            ifElse = genLabelId("if.else.line" + ss.str());
+            ifEnd = genLabelId("if.end.line" + ss.str());
+            // br if.init
+            os << "\tbr label %" << ifInit << "\n";
+            // if.init
+            os << "\n" << ifInit << ":\n";
+            auto ifre2 = scope;
+            enterScope();
+            {
+                if (stmt1->init != nullptr) {
+                    compileStmt(os, stmt1->init);
+                    os << "\tbr label %" << ifCond << "\n";
+                } else {
+                    os << "\tbr label %" << ifCond << "\n";
                 }
-                firstId = (*stmt0->idents)[0];
-                ss << "%%local_" << firstId << ".pop.0";
-                mangledName = ss.str();
-                scope->Insert(new Object(firstId, mangledName, stmt0));
-                os << "\t" << mangledName << " = alloca i32, align 4\n";
-                os << "\tstore i32 " << localName << ", i32* " << mangledName
-                   << "\n";
-                break;
-            case TType::ShortVarDeclT:
-                compileStmt_assign(os, _stmt);
-                break;
-            case TType::IfStmtT:
-                auto stmt1 = reinterpret_cast<IfStmtAST*>(stmt);
-                auto re1 = scope;
-                enterScope();
-                ss << thePos++;
-                ifInit = genLabelId("if.init.line" + ss.str());
-                ifCond = genLabelId("if.cond.line" + ss.str());
-                ifBody = genLabelId("if.body.line" + ss.str());
-                ifElse = genLabelId("if.else.line" + ss.str());
-                ifEnd = genLabelId("if.end.line" + ss.str());
-                // br if.init
-                os << "\tbr label %" << ifInit << "\n";
-                // if.init
-                os << "\n" << ifInit << ":\n";
-                auto re2 = scope;
-                enterScope();
+                // if.cond
                 {
-                    if (stmt1->init != nullptr) {
-                        compileStmt(os, stmt1->init);
-                        os << "\tbr label %" << ifCond << "\n";
+                    os << "\n" << ifCond << ":\n";
+                    auto cond = compileExpr(os, stmt1->cond);
+                    if (stmt1->elseBlockStmt != nullptr) {
+                        os << "\tbr i1 " << cond << ", label %" << ifBody
+                           << ", label %" << ifElse << "\n";
                     } else {
-                        os << "\tbr label %" << ifCond << "\n";
+                        os << "\tbr i1 " << cond << ", label %" << ifBody
+                           << ", label %" << ifEnd << "\n";
                     }
-                    // if.cond
-                    {
-                        os << "\n" << ifCond << ":\n";
-                        auto cond = compileExpr(os, stmt1->cond);
-                        if (stmt1->elseBlockStmt != nullptr) {
-                            os << "\tbr i1 " << cond << ", label %" << ifBody
-                               << ", label %" << ifElse << "\n";
-                        } else {
-                            os << "\tbr i1 " << cond << ", label %" << ifBody
-                               << ", label %" << ifEnd << "\n";
-                        }
-                    }
-                    // if.body
-                    auto re3 = scope;
-                    enterScope();
-                    {
-                        os << "\n" << ifBody << ":\n";
-                        compileStmt(os, stmt1->body);
-                        if (stmt1->elseBlockStmt != nullptr) {
-                            os << "\tbr label %" << ifElse << "\n";
-                        } else {
-                            os << "\tbr label %" << ifEnd << "\n";
-                        }
-                    }
-                    restoreScope(re3);
-                    // if.else
-                    auto re4 = scope;
-                    enterScope();
-                    {
-                        os << "\n" << ifElse << ":\n";
-                        if (stmt1->elseBlockStmt != nullptr) {
-                            compileStmt(os, stmt1->elseBlockStmt);
-                            os << "\tbr label %" << ifEnd << "\n";
-                        } else {
-                            os << "\tbr label %" << ifEnd << "\n";
-                        }
-                    }
-                    restoreScope(re4);
                 }
-                restoreScope(re2);
-                // end
-                os << "\n" << ifEnd << ":\n";
-                restoreScope(re1);
-                break;
-            case TType::ForStmtT:
-                auto stmt2 = reinterpret_cast<ForStmtAST*>(stmt);
-                auto re1 = scope;
-                enterScope();
-                ss << thePos++;
-                forInit = genLabelId("for.init.line" + ss.str());
-                forCond = genLabelId("for.cond.line" + ss.str());
-                forPost = genLabelId("for.post.line" + ss.str());
-                forBody = genLabelId("for.body.line" + ss.str());
-                forEnd = genLabelId("for.end.line" + ss.str());
-                // br for.init
-                os << "\tbr label %" << forInit << "\n";
-                auto re2 = scope;
+                // if.body
+                auto ifre3 = scope;
                 enterScope();
                 {
-                    os << "\n" << forInit << ":\n";
-                    if (stmt2->init != nullptr) {
-                        compileStmt(os, stmt2->init);
+                    os << "\n" << ifBody << ":\n";
+                    compileStmt(os, stmt1->body);
+                    if (stmt1->elseBlockStmt != nullptr) {
+                        os << "\tbr label %" << ifElse << "\n";
+                    } else {
+                        os << "\tbr label %" << ifEnd << "\n";
+                    }
+                }
+                restoreScope(ifre3);
+                // if.else
+                auto ifre4 = scope;
+                enterScope();
+                {
+                    os << "\n" << ifElse << ":\n";
+                    if (stmt1->elseBlockStmt != nullptr) {
+                        compileStmt(os, stmt1->elseBlockStmt);
+                        os << "\tbr label %" << ifEnd << "\n";
+                    } else {
+                        os << "\tbr label %" << ifEnd << "\n";
+                    }
+                }
+                restoreScope(ifre4);
+            }
+            restoreScope(ifre2);
+            // end
+            os << "\n" << ifEnd << ":\n";
+            restoreScope(ifre1);
+        } else if (stmt->type() == TType::ForStmtT) {
+            auto stmt2 = reinterpret_cast<ForStmtAST*>(stmt);
+            auto re1 = scope;
+            enterScope();
+            ss << thePos++;
+            forInit = genLabelId("for.init.line" + ss.str());
+            forCond = genLabelId("for.cond.line" + ss.str());
+            forPost = genLabelId("for.post.line" + ss.str());
+            forBody = genLabelId("for.body.line" + ss.str());
+            forEnd = genLabelId("for.end.line" + ss.str());
+            // br for.init
+            os << "\tbr label %" << forInit << "\n";
+            auto re2 = scope;
+            enterScope();
+            {
+                os << "\n" << forInit << ":\n";
+                if (stmt2->init != nullptr) {
+                    compileStmt(os, stmt2->init);
+                }
+                os << "\tbr label %" << forCond << "\n";
+
+                // for.cond
+                os << "\n" << forCond << ":\n";
+                if (stmt2->cond != nullptr) {
+                    auto cond = compileExpr(os, stmt2->cond);
+                    os << "\tbr i1 " << cond << ", label %" << forBody
+                       << ", label %" << forEnd << "\n";
+                } else {
+                    os << "\tbr label %" << forBody << "\n";
+                }
+                // for.body
+                auto re3 = scope;
+                enterScope();
+                {
+                    os << "\n" << forBody << ":\n";
+                    compileStmt(os, stmt2->body);
+                    os << "\tbr label %" << forPost << "\n";
+                }
+                restoreScope(re3);
+                // for.post
+                {
+                    os << "\n" << forPost << ":\n";
+                    if (stmt2->post != nullptr) {
+                        compileStmt(os, stmt2->post);
                     }
                     os << "\tbr label %" << forCond << "\n";
-
-                    // for.cond
-                    os << "\n" << forCond << ":\n";
-                    if (stmt2->cond != nullptr) {
-                        auto cond = compileExpr(os, stmt2->cond);
-                        os << "\tbr i1 " << cond << ", label %" << forBody
-                           << ", label %" << forEnd << "\n";
-                    } else {
-                        os << "\tbr label %" << forBody << "\n";
-                    }
-                    // for.body
-                    auto re3 = scope;
-                    enterScope();
-                    {
-                        os << "\n" << forBody << ":\n";
-                        compileStmt(os, stmt2->body);
-                        os << "\tbr label %" << forPost << "\n";
-                    }
-                    restoreScope(re3);
-                    // for.post
-                    {
-                        os << "\n" << forPost << ":\n";
-                        if (stmt2->post != nullptr) {
-                            compileStmt(os, stmt2->post);
-                        }
-                        os << "\tbr label %" << forCond << "\n";
-                    }
                 }
-                restoreScope(re2);
-                os << "\n" << forEnd << ":\n";
-                restoreScope(re1);
-                break;
-            case TType::BlockT:
-                auto stmt3 = reinterpret_cast<BlockAST*>(stmt);
-                auto re = scope;
-                enterScope();
-                for (auto& stmt : *stmt3->stmts) {
-                    compileStmt(os, stmt);
-                }
-                restoreScope(re);
-                break;
-            case TType::ExpStmtT:
-                auto stmt4 = reinterpret_cast<ExpStmtAST*>(stmt);
-                compileExpr(os, stmt4->exp);
-                break;
-            default:
-                cerr << "unknown stmt type" << endl;
-                assert(false);
-                break;
+            }
+            restoreScope(re2);
+            os << "\n" << forEnd << ":\n";
+            restoreScope(re1);
+        } else if (stmt->type() == TType::BlockT) {
+            auto stmt3 = reinterpret_cast<BlockAST*>(stmt);
+            auto re = scope;
+            enterScope();
+            for (auto& stmt : *stmt3->stmts) {
+                compileStmt(os, stmt);
+            }
+            restoreScope(re);
+        } else if (stmt->type() == TType::ExpStmtT) {
+            auto stmt4 = reinterpret_cast<ExpStmtAST*>(stmt);
+            compileExpr(os, stmt4->exp);
+        } else {
+            cerr << "unknown stmt type" << endl;
+            assert(false);
         }
     }
 
@@ -370,157 +350,148 @@ class Compiler {
         string localName;  // ret
         string varName;
         string funcName;
-        switch (expr->type()) {
-            case TType::LValT:
-                auto exp0 = reinterpret_cast<LValAST*>(expr);
-                auto obj = scope->Lookup(exp0->ident).second;
-                if (obj != nullptr) {
-                    varName = obj->MangledName;
-                } else {
-                    cerr << "var " << exp0->ident << " undefined" << endl;
-                    assert(false);
-                }
-                localName = genId();
-                os << "\t" << localName << " = load i32, i32* " << varName
-                   << ", align 4\n";
-                return localName;
-                break;
-            case TType::NumberT:
-                auto exp1 = reinterpret_cast<NumberAST*>(expr);
-                localName = genId();
-                os << "\t" << localName << " = "
-                   << "add"
-                   << " i32 "
-                   << "0"
-                   << ", " << exp1->num << endl;
-                return localName;
-                break;
-            case TType::BinExpT:
-                auto exp2 = reinterpret_cast<BinExpAST*>(expr);
-                localName = genId();
-                switch (exp2->op) {
-                    case BinExpAST::Op::ADD:
-                        os << "\t" << localName << " = "
-                           << "add"
-                           << " i32 " << compileExpr(os, exp2->left) << ", "
-                           << compileExpr(os, exp2->right) << endl;
-                        return localName;
-                        break;
-                    case BinExpAST::Op::SUB:
-                        os << "\t" << localName << " = "
-                           << "sub"
-                           << " i32 " << compileExpr(os, exp2->left) << ", "
-                           << compileExpr(os, exp2->right) << endl;
-                        return localName;
-                        break;
-                    case BinExpAST::Op::MUL:
-                        os << "\t" << localName << " = "
-                           << "mul"
-                           << " i32 " << compileExpr(os, exp2->left) << ", "
-                           << compileExpr(os, exp2->right) << endl;
-                        return localName;
-                        break;
-                    case BinExpAST::Op::DIV:
-                        os << "\t" << localName << " = "
-                           << "div"
-                           << " i32 " << compileExpr(os, exp2->left) << ", "
-                           << compileExpr(os, exp2->right) << endl;
-                        return localName;
-                        break;
-                    case BinExpAST::Op::MOD:
-                        os << "\t" << localName << " = "
-                           << "srem"
-                           << " i32 " << compileExpr(os, exp2->left) << ", "
-                           << compileExpr(os, exp2->right) << endl;
-                        return localName;
-                        break;
-                        // https://llvm.org/docs/LangRef.html#icmp-instruction
-                    case BinExpAST::Op::EQ:
-                        os << "\t" << localName << " = "
-                           << "icmp eq"
-                           << " i32 " << compileExpr(os, exp2->left) << ", "
-                           << compileExpr(os, exp2->right) << endl;
-                        return localName;
-                        break;
-                    case BinExpAST::Op::NE:
-                        os << "\t" << localName << " = "
-                           << "icmp ne"
-                           << " i32 " << compileExpr(os, exp2->left) << ", "
-                           << compileExpr(os, exp2->right) << endl;
-                        return localName;
-                        break;
-                    case BinExpAST::Op::LT:
-                        os << "\t" << localName << " = "
-                           << "icmp slt"
-                           << " i32 " << compileExpr(os, exp2->left) << ", "
-                           << compileExpr(os, exp2->right) << endl;
-                        return localName;
-                        break;
-                    case BinExpAST::Op::LE:
-                        os << "\t" << localName << " = "
-                           << "icmp sle"
-                           << " i32 " << compileExpr(os, exp2->left) << ", "
-                           << compileExpr(os, exp2->right) << endl;
-                        return localName;
-                        break;
-                    case BinExpAST::Op::GT:
-                        os << "\t" << localName << " = "
-                           << "icmp sgt"
-                           << " i32 " << compileExpr(os, exp2->left) << ", "
-                           << compileExpr(os, exp2->right) << endl;
-                        return localName;
-                        break;
-                    case BinExpAST::Op::GE:
-                        os << "\t" << localName << " = "
-                           << "icmp sge"
-                           << " i32 " << compileExpr(os, exp2->left) << ", "
-                           << compileExpr(os, exp2->right) << endl;
-                        return localName;
-                        break;
-                    default:
-                        cerr << "compileExpr: unknown type of BinExpAST"
-                             << endl;
-                        assert(false);
-                        break;
-                }
-                break;
-            case TType::UnaryExpT:
-                auto exp3 = reinterpret_cast<UnaryExpAST*>(expr);
-                if (exp3->op == '-') {
-                    localName = genId();
+        if (expr->type() == TType::LValT) {
+            auto exp0 = reinterpret_cast<LValAST*>(expr);
+            auto obj = scope->Lookup(exp0->ident).second;
+            if (obj != nullptr) {
+                varName = obj->MangledName;
+            } else {
+                cerr << "var " << exp0->ident << " undefined" << endl;
+                assert(false);
+            }
+            localName = genId();
+            os << "\t" << localName << " = load i32, i32* " << varName
+               << ", align 4\n";
+            return localName;
+        } else if (expr->type() == TType::NumberT) {
+            auto exp1 = reinterpret_cast<NumberAST*>(expr);
+            localName = genId();
+            os << "\t" << localName << " = "
+               << "add"
+               << " i32 "
+               << "0"
+               << ", " << exp1->num << endl;
+            return localName;
+        } else if (expr->type() == TType::BinExpT) {
+            auto exp2 = reinterpret_cast<BinExpAST*>(expr);
+            localName = genId();
+            switch (exp2->op) {
+                case BinExpAST::Op::ADD:
+                    os << "\t" << localName << " = "
+                       << "add"
+                       << " i32 " << compileExpr(os, exp2->left) << ", "
+                       << compileExpr(os, exp2->right) << endl;
+                    return localName;
+                    break;
+                case BinExpAST::Op::SUB:
                     os << "\t" << localName << " = "
                        << "sub"
-                       << " i32 "
-                       << "0"
-                       << ", " << compileExpr(os, exp3->p) << endl;
+                       << " i32 " << compileExpr(os, exp2->left) << ", "
+                       << compileExpr(os, exp2->right) << endl;
                     return localName;
-                }
-                return compileExpr(os, exp3->p);
-                break;
-            case TType::ParenExpT:
-                auto exp4 = reinterpret_cast<ParenExpAST*>(expr);
-                return compileExpr(os, exp4->p);
-                break;
-            case TType::CallExpT:
-                auto exp5 = reinterpret_cast<CallExpAST*>(expr);
-                auto obj = scope->Lookup(exp5->funcName).second;
-                if (obj != nullptr) {
-                    funcName = obj->MangledName;
-                } else {
-                    cerr << "compileExpr: function " << exp5->funcName
-                         << " undefined" << endl;
+                    break;
+                case BinExpAST::Op::MUL:
+                    os << "\t" << localName << " = "
+                       << "mul"
+                       << " i32 " << compileExpr(os, exp2->left) << ", "
+                       << compileExpr(os, exp2->right) << endl;
+                    return localName;
+                    break;
+                case BinExpAST::Op::DIV:
+                    os << "\t" << localName << " = "
+                       << "div"
+                       << " i32 " << compileExpr(os, exp2->left) << ", "
+                       << compileExpr(os, exp2->right) << endl;
+                    return localName;
+                    break;
+                case BinExpAST::Op::MOD:
+                    os << "\t" << localName << " = "
+                       << "srem"
+                       << " i32 " << compileExpr(os, exp2->left) << ", "
+                       << compileExpr(os, exp2->right) << endl;
+                    return localName;
+                    break;
+                    // https://llvm.org/docs/LangRef.html#icmp-instruction
+                case BinExpAST::Op::EQ:
+                    os << "\t" << localName << " = "
+                       << "icmp eq"
+                       << " i32 " << compileExpr(os, exp2->left) << ", "
+                       << compileExpr(os, exp2->right) << endl;
+                    return localName;
+                    break;
+                case BinExpAST::Op::NE:
+                    os << "\t" << localName << " = "
+                       << "icmp ne"
+                       << " i32 " << compileExpr(os, exp2->left) << ", "
+                       << compileExpr(os, exp2->right) << endl;
+                    return localName;
+                    break;
+                case BinExpAST::Op::LT:
+                    os << "\t" << localName << " = "
+                       << "icmp slt"
+                       << " i32 " << compileExpr(os, exp2->left) << ", "
+                       << compileExpr(os, exp2->right) << endl;
+                    return localName;
+                    break;
+                case BinExpAST::Op::LE:
+                    os << "\t" << localName << " = "
+                       << "icmp sle"
+                       << " i32 " << compileExpr(os, exp2->left) << ", "
+                       << compileExpr(os, exp2->right) << endl;
+                    return localName;
+                    break;
+                case BinExpAST::Op::GT:
+                    os << "\t" << localName << " = "
+                       << "icmp sgt"
+                       << " i32 " << compileExpr(os, exp2->left) << ", "
+                       << compileExpr(os, exp2->right) << endl;
+                    return localName;
+                    break;
+                case BinExpAST::Op::GE:
+                    os << "\t" << localName << " = "
+                       << "icmp sge"
+                       << " i32 " << compileExpr(os, exp2->left) << ", "
+                       << compileExpr(os, exp2->right) << endl;
+                    return localName;
+                    break;
+                default:
+                    cerr << "compileExpr: unknown type of BinExpAST" << endl;
                     assert(false);
-                }
+                    break;
+            }
+        } else if (expr->type() == TType::UnaryExpT) {
+            auto exp3 = reinterpret_cast<UnaryExpAST*>(expr);
+            if (exp3->op == '-') {
                 localName = genId();
-                os << "\t" << localName << " = call i32(i32) " << funcName
-                   << "(i32 "  // TODO test this
-                   << compileExpr(os, (*exp5->argList)[0]) << ")" << endl;
+                os << "\t" << localName << " = "
+                   << "sub"
+                   << " i32 "
+                   << "0"
+                   << ", " << compileExpr(os, exp3->p) << endl;
                 return localName;
-                break;
-            default:
-                cerr << "compileExpr: unknown type of ExpAST" << endl;
+            }
+            return compileExpr(os, exp3->p);
+        } else if (expr->type() == TType::ParenExpT) {
+            auto exp4 = reinterpret_cast<ParenExpAST*>(expr);
+            return compileExpr(os, exp4->p);
+        } else if (expr->type() == TType::CallExpT) {
+            auto exp5 = reinterpret_cast<CallExpAST*>(expr);
+            auto obj = scope->Lookup(exp5->funcName).second;
+            if (obj != nullptr) {
+                funcName = obj->MangledName;
+            } else {
+                cerr << "compileExpr: function " << exp5->funcName
+                     << " undefined" << endl;
                 assert(false);
-                break;
+            }
+            localName = genId();
+            os << "\t" << localName << " = call i32(i32) " << funcName
+               << "(i32 "  // TODO test this
+               << compileExpr(os, (*exp5->argList)[0]) << ")" << endl;
+            return localName;
+        } else {
+            cerr << "compileExpr: unknown type of ExpAST" << endl;
+            assert(false);
         }
         return localName;
     }

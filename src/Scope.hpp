@@ -60,12 +60,8 @@ class Scope {
 
     static Scope* Universe() {
         auto universe = new Scope(nullptr);
-        auto buildinObjects =
-            new vector<Object*>(new Object("println", "@ugo_builtin_println"),
-                                new Object("exit", "@ugo_builtin_exit"));
-        for (auto& obj : *buildinObjects) {
-            universe->Insert(obj);
-        }
+        universe->Insert(new Object("println", "@ugo_builtin_println"));
+        universe->Insert(new Object("exit", "@ugo_builtin_exit"));
         return universe;
     }
 };
