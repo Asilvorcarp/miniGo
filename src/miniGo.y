@@ -73,9 +73,7 @@ CompUnit : PackClause TopLevelDeclList {
     ast = std::move(comp_unit);
 };
 
-TopLevelDecl : Decl | FuncDef {
-    $$ = $1;
-};
+TopLevelDecl : Decl | FuncDef;
 TopLevelDeclList : /* empty */ {
     $$ = new vpAST();
 } | TopLevelDecl {
@@ -259,19 +257,7 @@ ForStmt : FOR Block { // always
     ast->block = pAST($7);
     $$ = ast;
 };
-Stmt : Decl {
-    $$ = $1;
-} | IfStmt {
-    $$ = $1;
-} | ReturnStmt {
-    $$ = $1;
-} | SimpleStmt {
-    $$ = $1;
-} | ForStmt {
-    $$ = $1;
-} | Block {
-    $$ = $1;
-};
+Stmt : Decl | IfStmt | ReturnStmt | SimpleStmt | ForStmt | Block;
 
 // var i, j int = 1, 2
 // var c, python, java = true, false, "no!"
@@ -347,12 +333,8 @@ BType : INT {
     $$ = ast;
 };
 
-Number : INT_CONST {
-    $$ = $1;
-};
-Exp : LOrExp {
-    $$ = $1;
-};
+Number : INT_CONST;
+Exp : LOrExp;
 LVal : IDENT {
     auto ast = new LValAST();
     ast->ident = *unique_ptr<string>($1);
@@ -370,9 +352,7 @@ PrimaryExp : '(' Exp ')' {
 } | Number{
     $$ = new PrimaryExpAST($1);
 };
-UnaryExp : PrimaryExp  {
-    $$ = $1;
-} | IDENT '(' ArgList ')' {
+UnaryExp : PrimaryExp | IDENT '(' ArgList ')' {
     $$ = new UnaryExpAST($1, $3);
 } | UnaryOp UnaryExp {
     $$ = new UnaryExpAST($1, $2);
@@ -390,39 +370,27 @@ ArgList : /* empty */ {
     l->push_back(pAST($3));
     $$ = l;
 };
-MulExp: UnaryExp {
-    $$ = $1;
-} | MulExp MulOp UnaryExp {
+MulExp: UnaryExp | MulExp MulOp UnaryExp {
     $$ = new BinExpAST($2, $1, $3);
 };
 MulOp: '*' | '/' | '%';
-AddExp: MulExp {
-    $$ = $1;
-} | AddExp AddOp MulExp {
+AddExp: MulExp | AddExp AddOp MulExp {
     $$ = new BinExpAST($2, $1, $3);
 };
 AddOp: '+' | '-';
-RelExp: AddExp {
-    $$ = $1;
-} | RelExp RelOp AddExp {
+RelExp: AddExp | RelExp RelOp AddExp {
     $$ = new BinExpAST($2, $1, $3);
 };
 RelOp: '<' {$$=new string("<");} | '>' {$$=new string(">");} 
      | LE | GE;
-EqExp: RelExp {
-    $$ = $1;
-} | EqExp EqOp RelExp {
+EqExp: RelExp | EqExp EqOp RelExp {
     $$ = new BinExpAST($2, $1, $3);
 };
 EqOp: EQ | NE;
-LAndExp: EqExp {
-    $$ = $1;
-} | LAndExp AND EqExp {
+LAndExp: EqExp | LAndExp AND EqExp {
     $$ = new BinExpAST($2, $1, $3);
 };
-LOrExp: LAndExp {
-    $$ = $1; // TODO remove all $$ = $1; shit
-} | LOrExp OR LAndExp {
+LOrExp: LAndExp | LOrExp OR LAndExp {
     $$ = new BinExpAST($2, $1, $3);
 };
 ConstExp: Exp {
