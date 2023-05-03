@@ -54,7 +54,7 @@ using namespace std;
 %type <int_val> Number
 %type <char_val> AddOp MulOp UnaryOp
 %type <str_val> RelOp EqOp PackClause
-%type <ast_list> TopLevelDeclList FuncFParamList StmtList ArgList InitVals
+%type <ast_list> TopLevelDeclList FuncFParamList StmtList ArgList InitVals LVals
 %type <str_list> IDs
 
 %%
@@ -160,17 +160,20 @@ IncDecStmt : LVal INC {
 } | LVal DEC {
     // TODO
 };
-AssignStmt : LVal '=' Exp {
-    auto ast = new AssignStmtAST();
-    ast->lval = pAST($1);
-    ast->exp = pAST($3);
+// TODO support multiple assign in one stmt
+// And maybe combine it with ShortVarDecl
+AssignStmt : LVals '=' InitVals {
+    auto ast = new ShortVarDeclAST();
+    ast->targets = pvpAST($1);
+    ast->initVals = pvpAST($3);
     $$ = ast;
 };
 // i, j := 0, 10
-ShortVarDecl : IDs DEFINE InitVals {
+ShortVarDecl : LVals DEFINE InitVals {
     auto ast = new ShortVarDeclAST();
-    ast->idents = pvStr($1);
+    ast->targets = pvpAST($1);
     ast->initVals = pvpAST($3);
+    ast->isDefine = true;
     $$ = ast;
 };
 SimpleStmt : /* empty stmt */ {$$ = new EmptyStmtAST();} 
@@ -280,7 +283,7 @@ IDs : IDENT {
 // no init for array like: var a [2]int = {1, 2} // C style
 // support in the future: var a [2]int = [2]int{1, 2}
 InitVal : Exp ;
-InitVals : InitVal {
+InitVals : InitVal { // just Exps
     auto l = new vpAST();
     l->push_back(pAST($1));
     $$ = l;
@@ -344,6 +347,15 @@ LVal : IDENT {
     auto ast = $1;
     ast->add($3);
     $$ = ast;
+};
+LVals : LVal {
+    auto l = new vpAST();
+    l->push_back(pAST($1));
+    $$ = l;
+} | LVals ',' LVal {
+    auto l = $1;
+    l->push_back(pAST($3));
+    $$ = l;
 };
 PrimaryExp : '(' Exp ')' {
     $$ = new ParenExpAST($2);

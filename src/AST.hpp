@@ -21,8 +21,8 @@ enum class TType {
     ReturnStmtT,
     BTypeT,
     ForStmtT,
-    AssignStmtT,
     ShortVarDeclT,
+    // AssignStmtT,
     IfStmtT,
     // ExpT,
     LValT,
@@ -325,35 +325,38 @@ class ForStmtAST : public StmtAST {
     }
 };
 
-class AssignStmtAST : public StmtAST {
-   public:
-    TType ty = TType::AssignStmtT;
-    pAST lval;
-    pAST exp;
+// class AssignStmtAST : public StmtAST {
+//    public:
+//     TType ty = TType::AssignStmtT;
+//     pAST lval;
+//     pAST exp;
 
-    TType type() const override { return ty; }
-    json toJson() const override {
-        json j;
-        j["type"] = "AssignStmtAST";
-        j["lval"] = lval->toJson();
-        j["exp"] = exp->toJson();
-        return j;
-    }
-};
+//     TType type() const override { return ty; }
+//     json toJson() const override {
+//         json j;
+//         j["type"] = "AssignStmtAST";
+//         j["lval"] = lval->toJson();
+//         j["exp"] = exp->toJson();
+//         return j;
+//     }
+// };
 
+// now include Assign, TODO rename
 class ShortVarDeclAST : public StmtAST {
    public:
     TType ty = TType::ShortVarDeclT;
-    pvStr idents;
+    bool isDefine = false;
+    pvpAST targets;
     pvpAST initVals;
 
     TType type() const override { return ty; }
     json toJson() const override {
         json j;
         j["type"] = "ShortVarDecl";
-        j["idents"] = json::array();
-        for (auto &ident : *idents) {
-            j["idents"].push_back(ident);
+        j["isDefine"] = isDefine;
+        j["Targets"] = json::array();
+        for (auto &tar : *targets) {
+            j["targets"].push_back(tar->toJson());
         }
         j["initVals"] = json::array();
         for (auto &initVal : *initVals) {
@@ -395,17 +398,65 @@ class LValAST : public ExpAST {
 class BinExpAST : public ExpAST {
    public:
     TType ty = TType::BinExpT;
-    string op;
+    enum Op {
+        ADD,  // +
+        SUB,  // -
+        MUL,  // *
+        DIV,  // /
+        MOD,  // %
+        EQ,  // ==
+        NE,  // !=
+        LT,  // < // str
+        LE,  // <=
+        GT,  // > // str
+        GE,  // >=
+        AND,  // &&
+        OR,   // ||
+    } op;
     pAST left;
     pAST right;
 
     BinExpAST(char _op, BaseAST *ast1, BaseAST *ast2) {
-        op = _op;  // TODO test
+        // assign op according to + - * / ...
+        if(_op == '+'){
+            op = Op::ADD;
+        } else if (_op == '-') {
+            op = Op::SUB;
+        } else if (_op == '*') {
+            op = Op::MUL;
+        } else if (_op == '/') {
+            op = Op::DIV;
+        } else if (_op == '%') {
+            op = Op::MOD;
+        } else {
+            cerr<<"BinExpAST: unknown char op"<<endl;
+            assert(false);
+        }
         left = pAST(ast1);
         right = pAST(ast2);
     }
     BinExpAST(string *_op, BaseAST *ast1, BaseAST *ast2) {
-        op = *unique_ptr<string>(_op);
+        // assign op according to == != < <= > >= && ||
+        if(*_op == "=="){
+            op = Op::EQ;
+        } else if (*_op == "!=") {
+            op = Op::NE;
+        } else if (*_op == "<") {
+            op = Op::LT;
+        } else if (*_op == "<=") {
+            op = Op::LE;
+        } else if (*_op == ">") {
+            op = Op::GT;
+        } else if (*_op == ">=") {
+            op = Op::GE;
+        } else if (*_op == "&&") {
+            op = Op::AND;
+        } else if (*_op == "||") {
+            op = Op::OR;
+        } else {
+            cerr<<"BinExpAST: unknown string op"<<endl;
+            assert(false);
+        }
         left = pAST(ast1);
         right = pAST(ast2);
     }
