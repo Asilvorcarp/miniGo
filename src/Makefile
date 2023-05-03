@@ -5,7 +5,7 @@ all: miniGo
 miniGo:
 	flex -o miniGo.yy.cpp miniGo.l
 	bison -t miniGo.y -o miniGo.tab.hpp
-	clang++ -o miniGo.out miniGo.yy.cpp main.cpp -I. -DYYDEBUG -std=c++17
+	clang++ -o miniGo.out miniGo.yy.cpp main.cpp -I. -DYYDEBUG -std=c++20
 
 test: miniGo
 	@echo

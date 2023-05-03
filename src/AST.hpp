@@ -3,10 +3,9 @@
 #include <bits/stdc++.h>
 
 #include <iostream>
+#include <json.hpp>
 #include <memory>
 #include <string>
-
-#include <json.hpp>
 
 using json = nlohmann::json;
 using namespace std;
@@ -15,11 +14,12 @@ using namespace std;
 class BaseAST {
    public:
     virtual ~BaseAST() = default;
+    virtual string type() const = 0;
     virtual json toJson() const = 0;
     friend ostream &operator<<(ostream &os, const BaseAST &ast) {
         return os << ast.toJson().dump(4);
     }
-    virtual void add(BaseAST *ast) {};
+    virtual void add(BaseAST *ast){};
 };
 
 using pAST = unique_ptr<BaseAST>;
@@ -27,31 +27,13 @@ using vpAST = vector<pAST>;
 using pvpAST = unique_ptr<vpAST>;
 using pvStr = unique_ptr<vector<string>>;
 
-// dump list with no ending comma
-
-class CompUnitAST : public BaseAST {
-   public:
-    string packageName;
-    pvpAST topDefs;
-
-    json toJson() const override {
-        json j;
-        j["type"] = "CompUnitAST";
-        j["packageName"] = packageName;
-        j["topDefs"] = json::array();
-        for (auto &topDef : *topDefs) {
-            j["topDefs"].push_back(topDef->toJson());
-        }
-        return j;
-    }
-};
-
 class FuncDefAST : public BaseAST {
    public:
     pAST func_type;
     string ident;
     pAST block;
 
+    string type() const override { return "FuncDefAST"; }
     json toJson() const override {
         json j;
         j["type"] = "FuncDefAST";
@@ -62,14 +44,78 @@ class FuncDefAST : public BaseAST {
     }
 };
 
+class VarSpecAST : public BaseAST {
+   public:
+    pvStr idents;
+    pAST btype = nullptr;
+    pvpAST initVals = make_unique<vpAST>();
+
+    string type() const override { return "VarSpecAST"; }
+    json toJson() const override {
+        json j;
+        j["type"] = "VarSpecAST";
+        j["idents"] = json::array();
+        for (auto &ident : *idents) {
+            j["idents"].push_back(ident);
+        }
+        if (btype != nullptr) {
+            j["btype"] = btype->toJson();
+        }
+        j["initVals"] = json::array();
+        for (auto &initVal : *initVals) {
+            j["initVals"].push_back(initVal->toJson());
+        }
+        return j;
+    }
+};
+
+class CompUnitAST : public BaseAST {
+   public:
+    string packageName;
+    vector<unique_ptr<VarSpecAST>> Globals;
+    vector<unique_ptr<FuncDefAST>> Funcs;
+
+    void sort(vpAST *topDefs) {
+        for (auto &topDef : *topDefs) {
+            if (topDef->type() == "VarSpecAST") {
+                Globals.push_back(
+                    unique_ptr<VarSpecAST>((VarSpecAST *)topDef.get()));
+            } else if (topDef->type() == "FuncDefAST") {
+                Funcs.push_back(
+                    unique_ptr<FuncDefAST>((FuncDefAST *)topDef.get()));
+            }
+        }
+    }
+
+    string type() const override { return "CompUnitAST"; }
+    json toJson() const override {
+        json j;
+        j["type"] = "CompUnitAST";
+        j["packageName"] = packageName;
+        j["Globals"] = json::array();
+        for (auto &g : Globals) {
+            j["Globals"].push_back(g->toJson());
+        }
+        j["Funcs"] = json::array();
+        for (auto &f : Funcs) {
+            j["Funcs"].push_back(f->toJson());
+        }
+        return j;
+    }
+};
+
 class FuncTypeAST : public BaseAST {
    public:
-    string type = "void";  // default void
+    string t = "void";  // default void
 
+    string type() const override {
+        // fuck
+        return "FuncTypeAST";
+    }
     json toJson() const override {
         json j;
         j["type"] = "FuncTypeAST";
-        j["type"] = type;
+        j["t"] = t;
         return j;
     }
 };
@@ -78,6 +124,10 @@ class BlockAST : public BaseAST {
    public:
     pvpAST stmts;
 
+    string type() const override {
+        // fuck
+        return "FuncTypeAST";
+    }
     json toJson() const override {
         json j;
         j["type"] = "BlockAST";
@@ -93,6 +143,7 @@ class StmtAST : public BaseAST {};
 
 class EmptyStmtAST : public StmtAST {
    public:
+    string type() const override { return "EmptyStmtAST"; }
     json toJson() const override {
         json j;
         j["type"] = "EmptyStmtAST";
@@ -104,6 +155,7 @@ class ReturnStmtAST : public StmtAST {
    public:
     pAST exp = nullptr;
 
+    string type() const override { return "ReturnStmtAST"; }
     json toJson() const override {
         json j;
         j["type"] = "ReturnStmtAST";
@@ -130,6 +182,7 @@ class PrimaryExpAST : public BaseAST {
         p = pAST(ast);
     }
 
+    string type() const override { return "PrimaryExpAST"; }
     json toJson() const override {
         json j;
         j["type"] = "PrimaryExpAST";
@@ -145,10 +198,11 @@ class PrimaryExpAST : public BaseAST {
 };
 
 class BTypeAST : public BaseAST {
-    public:
+   public:
     string elementType = "int";
     unique_ptr<vector<int>> dims = nullptr;
 
+    string type() const override { return "BTypeAST"; }
     json toJson() const override {
         json j;
         j["type"] = "BType";
@@ -163,32 +217,8 @@ class BTypeAST : public BaseAST {
     }
 };
 
-class VarSpecAST : public BaseAST {
-   public:
-    pvStr idents;
-    pAST btype = nullptr;
-    pvpAST initVals = make_unique<vpAST>();
-
-    json toJson() const override {
-        json j;
-        j["type"] = "VarSpecAST";
-        j["idents"] = json::array();
-        for (auto &ident : *idents) {
-            j["idents"].push_back(ident);
-        }
-        if (btype != nullptr) {
-            j["btype"] = btype->toJson();
-        }
-        j["initVals"] = json::array();
-        for (auto &initVal : *initVals) {
-            j["initVals"].push_back(initVal->toJson());
-        }
-        return j;
-    }
-};
-
 class UnaryExpAST : public BaseAST {
-    public:
+   public:
     // unary operator, '+' '-' '!' or 'C' for func call
     char op;
     pAST p = nullptr;
@@ -199,12 +229,18 @@ class UnaryExpAST : public BaseAST {
         op = _op;
         p = pAST(ast);
     }
-    UnaryExpAST(string* _funcName, vpAST *_argList) {
+    UnaryExpAST(string *_funcName, vpAST *_argList) {
         op = 'C';
         funcName = *unique_ptr<string>(_funcName);
         argList = pvpAST(_argList);
     }
 
+    string type() const override {
+        // if(op=='C'){
+        //     return "FuncCallAST";
+        // }
+        return "UnaryExpAST";
+    }
     json toJson() const override {
         json j;
         j["type"] = "UnaryExpAST";
@@ -232,6 +268,7 @@ class ForStmtAST : public StmtAST {
     pAST step = make_unique<EmptyStmtAST>();
     pAST block;
 
+    string type() const override { return "ForStmtAST"; }
     json toJson() const override {
         json j;
         j["type"] = "ForStmtAST";
@@ -248,6 +285,7 @@ class AssignStmtAST : public StmtAST {
     pAST lval;
     pAST exp;
 
+    string type() const override { return "AssignStmtAST"; }
     json toJson() const override {
         json j;
         j["type"] = "AssignStmtAST";
@@ -262,6 +300,7 @@ class ShortVarDeclAST : public StmtAST {
     pvStr idents;
     pvpAST initVals;
 
+    string type() const override { return "ShortVarDeclAST"; }
     json toJson() const override {
         json j;
         j["type"] = "ShortVarDecl";
@@ -282,14 +321,15 @@ class LValAST : public BaseAST {
     string ident;
     pvpAST indexList;
 
-    void add(BaseAST* index) override {
-        if (indexList == nullptr) { 
+    void add(BaseAST *index) override {
+        if (indexList == nullptr) {
             // actually impossible
             indexList = make_unique<vpAST>();
         }
         indexList->push_back(pAST(index));
     }
 
+    string type() const override { return "LValAST"; }
     json toJson() const override {
         json j;
         j["type"] = "LValAST";
@@ -311,16 +351,17 @@ class BinExpAST : public BaseAST {
     pAST right;
 
     BinExpAST(char _op, BaseAST *ast1, BaseAST *ast2) {
-        op = _op; // TODO test
+        op = _op;  // TODO test
         left = pAST(ast1);
         right = pAST(ast2);
     }
-    BinExpAST(string* _op, BaseAST *ast1, BaseAST *ast2) {
+    BinExpAST(string *_op, BaseAST *ast1, BaseAST *ast2) {
         op = *unique_ptr<string>(_op);
         left = pAST(ast1);
         right = pAST(ast2);
     }
 
+    string type() const override { return "BinExpAST"; }
     json toJson() const override {
         json j;
         j["type"] = "BinaryExpAST";
@@ -340,6 +381,7 @@ class IfStmtAST : public StmtAST {
     // else block or if stmt
     pAST elseBlockStmt = nullptr;
 
+    string type() const override { return "IfStmtAST"; }
     json toJson() const override {
         json j;
         j["type"] = "IfStmtAST";

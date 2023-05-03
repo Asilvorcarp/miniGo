@@ -69,7 +69,8 @@ using namespace std;
 CompUnit : PackClause TopLevelDeclList {
     auto comp_unit = make_unique<CompUnitAST>();
     comp_unit->packageName = *unique_ptr<string>($1);
-    comp_unit->topDefs = pvpAST($2);
+    // comp_unit->topDefs = pvpAST($2);
+    comp_unit->sort($2);
     ast = std::move(comp_unit);
 };
 
@@ -131,7 +132,7 @@ FuncType : /* empty */ {
     $$ = ast;
 } | BType {
     auto ast = new FuncTypeAST();
-    ast->type = "int"; // TODO
+    ast->t = "int"; // TODO
     $$ = ast;
 };
 
