@@ -69,8 +69,7 @@ using namespace std;
 CompUnit : PackClause TopLevelDeclList {
     auto comp_unit = make_unique<CompUnitAST>();
     comp_unit->packageName = *unique_ptr<string>($1);
-    // comp_unit->topDefs = pvpAST($2);
-    comp_unit->sort($2);
+    comp_unit->setDefs($2);
     ast = std::move(comp_unit);
 };
 
@@ -347,14 +346,12 @@ LVal : IDENT {
     $$ = ast;
 };
 PrimaryExp : '(' Exp ')' {
-    $$ = new PrimaryExpAST($2, PrimaryExpAST::Type::PAREN);
-} | LVal {
-    $$ = new PrimaryExpAST($1, PrimaryExpAST::Type::LVAL);
-} | Number{
-    $$ = new PrimaryExpAST($1);
+    $$ = new ParenExpAST($2);
+} | LVal | Number {
+    $$ = new NumberAST($1);
 };
 UnaryExp : PrimaryExp | IDENT '(' ArgList ')' {
-    $$ = new UnaryExpAST($1, $3);
+    $$ = new CallExpAST($1, $3);
 } | UnaryOp UnaryExp {
     $$ = new UnaryExpAST($1, $2);
 };

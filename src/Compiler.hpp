@@ -37,9 +37,9 @@ class Compiler {
 
         file = _file;
 
-        genHeader(file, ss);
-        compileFile(file, ss);
-        genMain(file, ss);
+        genHeader(ss, file);
+        compileFile(ss, file);
+        genMain(ss, file);
 
         return ss.str();
     }
@@ -69,9 +69,24 @@ class Compiler {
     void compileFunc(ostream& os, CompUnitAST* file, FuncDefAST* fn);
     void compileStmt(ostream& os, StmtAST* stmt);
     void compileStmt_assign(ostream& os, AssignStmtAST* stmt);
-    string compileExpr(ostream& os, PrimaryExpAST expr);
-    string genId();
-    string genLabelId(string name);
+    string compileExpr(ostream& os, ExpAST* expr);
+    string genId() {
+        stringstream ss;
+        ss << "%t" << nextId++;
+        return ss.str();
+    }
+    string genLabelId(string name) {
+        stringstream ss;
+        ss << name << "." << nextId++;
+        return ss.str();
+    }
+
+    constexpr uint32_t hash(const string& s) noexcept {
+        uint32_t hash = 5381;
+        for (int i = 0; i <= s.size(); ++i)
+            hash = ((hash << 5) + hash) + (unsigned char)s[i];
+        return hash;
+    }
 
     void genInit(ostream& os, CompUnitAST* file) {
         os << "define i32 @ugo_" << file->packageName << "_init() {\n";
@@ -82,6 +97,33 @@ class Compiler {
                 // TODO doing
                 // localName = compileExpr(os, *(*g->initVals)[0]);
             }
+        }
+    }
+
+    string compileExpr(ostream& os, ExpAST* expr) {
+        string varName;
+        switch (expr->ty) {
+            case TType::LValT:
+                auto exp = reinterpret_cast<LValAST*>(expr);
+                varName = exp->ident;
+                break;
+            case TType::NumberT:
+                auto exp = reinterpret_cast<NumberAST*>(expr);
+                break;
+            case TType::BinExpT:
+                auto exp = reinterpret_cast<BinExpAST*>(expr);
+                break;
+            case TType::UnaryExpT:
+                auto exp = reinterpret_cast<UnaryExpAST*>(expr);
+                break;
+            case TType::ParenExpT:
+                auto exp = reinterpret_cast<ParenExpAST*>(expr);
+                break;
+            case TType::CallExpT:
+                auto exp = reinterpret_cast<CallExpAST*>(expr);
+                break;
+            default:
+                break;
         }
     }
 };
