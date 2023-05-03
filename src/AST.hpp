@@ -39,9 +39,8 @@ enum class TType {
 // 所有 AST 的基类
 class BaseAST {
    public:
-    TType ty;
     virtual ~BaseAST() = default;
-    // virtual string type() const = 0;
+    virtual TType type() const = 0;
     virtual json toJson() const = 0;
     friend ostream &operator<<(ostream &os, const BaseAST &ast) {
         return os << ast.toJson().dump(4);
@@ -54,6 +53,9 @@ using vpAST = vector<pAST>;
 using pvpAST = unique_ptr<vpAST>;
 using pvStr = unique_ptr<vector<string>>;
 
+class StmtAST : public BaseAST {};
+class ExpAST : public BaseAST {};
+
 class FuncDefAST : public BaseAST {
    public:
     TType ty = TType::FuncDefT;
@@ -61,7 +63,7 @@ class FuncDefAST : public BaseAST {
     string ident;
     pAST block;
 
-    string type() const { return "FuncDefAST"; }
+    TType type() const override { return ty; }
     json toJson() const override {
         json j;
         j["type"] = "FuncDefAST";
@@ -79,7 +81,7 @@ class VarSpecAST : public BaseAST {
     pAST btype = nullptr;
     pvpAST initVals = make_unique<vpAST>();
 
-    string type() const { return "VarSpecAST"; }
+    TType type() const override { return ty; }
     json toJson() const override {
         json j;
         j["type"] = "VarSpecAST";
@@ -108,11 +110,18 @@ class CompUnitAST : public BaseAST {
     void setDefs(vpAST *topDeclList) {
         cout << ">> FUCK" << endl;
         for (auto &topDef : *topDeclList) {
-            if (topDef->ty == TType::VarSpecT) {
+            // if (topDef->type() == "VarSpecAST") {
+            //     Globals.push_back(
+            //         unique_ptr<VarSpecAST>((VarSpecAST *)topDef.get()));
+            // } else if (topDef->type() == "FuncDefAST") {
+            //     Funcs.push_back(
+            //         unique_ptr<FuncDefAST>((FuncDefAST *)topDef.get()));
+            // }
+            if (topDef->type() == TType::VarSpecT) {
                 cout << ">> FUCK1" << endl;
                 Globals.push_back(
                     unique_ptr<VarSpecAST>((VarSpecAST *)topDef.get()));
-            } else if (topDef->ty == TType::FuncDefT) {
+            } else if (topDef->type() == TType::FuncDefT) {
                 cout << ">> FUCK2" << endl;
                 Funcs.push_back(
                     unique_ptr<FuncDefAST>((FuncDefAST *)topDef.get()));
@@ -120,7 +129,7 @@ class CompUnitAST : public BaseAST {
         }
     }
 
-    string type() const { return "CompUnitAST"; }
+    TType type() const override { return ty; }
     json toJson() const override {
         json j;
         j["type"] = "CompUnitAST";
@@ -142,10 +151,8 @@ class FuncTypeAST : public BaseAST {
     TType ty = TType::FuncTypeT;
     string t = "void";  // default void
 
-    string type() const {
-        // fuck
-        return "FuncTypeAST";
-    }
+    TType type() const override { return ty; }
+
     json toJson() const override {
         json j;
         j["type"] = "FuncTypeAST";
@@ -159,10 +166,7 @@ class BlockAST : public BaseAST {
     TType ty = TType::BlockT;
     pvpAST stmts;
 
-    string type() const {
-        // fuck
-        return "FuncTypeAST";
-    }
+    TType type() const override { return ty; }
     json toJson() const override {
         json j;
         j["type"] = "BlockAST";
@@ -174,17 +178,10 @@ class BlockAST : public BaseAST {
     }
 };
 
-class StmtAST : public BaseAST {
-    json toJson() const = 0;
-};
-class ExpAST : public BaseAST {
-    json toJson() const = 0;
-};
-
 class EmptyStmtAST : public StmtAST {
    public:
     TType ty = TType::EmptyStmtT;
-    string type() const { return "EmptyStmtAST"; }
+    TType type() const override { return ty; }
     json toJson() const override {
         json j;
         j["type"] = "EmptyStmtAST";
@@ -197,7 +194,7 @@ class ReturnStmtAST : public StmtAST {
     TType ty = TType::ReturnStmtT;
     pAST exp = nullptr;
 
-    string type() const { return "ReturnStmtAST"; }
+    TType type() const override { return ty; }
     json toJson() const override {
         json j;
         j["type"] = "ReturnStmtAST";
@@ -215,6 +212,7 @@ class ParenExpAST : public ExpAST {
 
     ParenExpAST(BaseAST *ast) { p = pAST(ast); }
 
+    TType type() const override { return ty; }
     json toJson() const override {
         json j;
         j["type"] = "ParenExpAST";
@@ -232,6 +230,7 @@ class NumberAST : public ExpAST {
 
     NumberAST(int n) { num = n; }
 
+    TType type() const override { return ty; }
     json toJson() const override {
         json j;
         j["type"] = "NumberAST";
@@ -246,7 +245,7 @@ class BTypeAST : public BaseAST {
     string elementType = "int";
     unique_ptr<vector<int>> dims = nullptr;
 
-    string type() const { return "BTypeAST"; }
+    TType type() const override { return ty; }
     json toJson() const override {
         json j;
         j["type"] = "BType";
@@ -273,6 +272,7 @@ class UnaryExpAST : public ExpAST {
         p = pAST(ast);
     }
 
+    TType type() const override { return ty; }
     json toJson() const override {
         json j;
         j["type"] = "UnaryExpAST";
@@ -295,6 +295,7 @@ class CallExpAST : public ExpAST {
         argList = pvpAST(_argList);
     }
 
+    TType type() const override { return ty; }
     json toJson() const override {
         json j;
         j["type"] = "CallExpAST";
@@ -319,7 +320,7 @@ class ForStmtAST : public StmtAST {
     pAST step = make_unique<EmptyStmtAST>();
     pAST block;
 
-    string type() const { return "ForStmtAST"; }
+    TType type() const override { return ty; }
     json toJson() const override {
         json j;
         j["type"] = "ForStmtAST";
@@ -337,7 +338,7 @@ class AssignStmtAST : public StmtAST {
     pAST lval;
     pAST exp;
 
-    string type() const { return "AssignStmtAST"; }
+    TType type() const override { return ty; }
     json toJson() const override {
         json j;
         j["type"] = "AssignStmtAST";
@@ -353,7 +354,7 @@ class ShortVarDeclAST : public StmtAST {
     pvStr idents;
     pvpAST initVals;
 
-    string type() const { return "ShortVarDeclAST"; }
+    TType type() const override { return ty; }
     json toJson() const override {
         json j;
         j["type"] = "ShortVarDecl";
@@ -383,7 +384,7 @@ class LValAST : public ExpAST {
         indexList->push_back(pAST(index));
     }
 
-    string type() const { return "LValAST"; }
+    TType type() const override { return ty; }
     json toJson() const override {
         json j;
         j["type"] = "LValAST";
@@ -416,7 +417,7 @@ class BinExpAST : public ExpAST {
         right = pAST(ast2);
     }
 
-    string type() const { return "BinExpAST"; }
+    TType type() const override { return ty; }
     json toJson() const override {
         json j;
         j["type"] = "BinaryExpAST";
@@ -437,7 +438,7 @@ class IfStmtAST : public StmtAST {
     // else block or if stmt
     pAST elseBlockStmt = nullptr;
 
-    string type() const { return "IfStmtAST"; }
+    TType type() const override { return ty; }
     json toJson() const override {
         json j;
         j["type"] = "IfStmtAST";

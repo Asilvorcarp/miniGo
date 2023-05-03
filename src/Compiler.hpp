@@ -102,7 +102,7 @@ class Compiler {
 
     string compileExpr(ostream& os, ExpAST* expr) {
         string varName;
-        switch (expr->ty) {
+        switch (expr->type()) {
             case TType::LValT:
                 auto exp = reinterpret_cast<LValAST*>(expr);
                 varName = exp->ident;
