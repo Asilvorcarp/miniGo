@@ -167,7 +167,7 @@ class VarSpecAST : public BaseAST {
    public:
     pvStr idents;
     pAST btype = nullptr;
-    pvpAST initVals = nullptr;
+    pvpAST initVals = make_unique<vpAST>();
 
     json toJson() const override {
         json j;
