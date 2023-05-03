@@ -208,7 +208,7 @@ class UnaryExpAST : public BaseAST {
     json toJson() const override {
         json j;
         j["type"] = "UnaryExpAST";
-        j["op"] = op;
+        j["op"] = string(1, op);
         if (p != nullptr) {
             j["p"] = p->toJson();
         }

@@ -381,7 +381,7 @@ AddOp: '+' | '-';
 RelExp: AddExp | RelExp RelOp AddExp {
     $$ = new BinExpAST($2, $1, $3);
 };
-RelOp: '<' {$$=new string("<");} | '>' {$$=new string(">");} 
+RelOp: '<' {$$=new string(yytext);} | '>' {$$=new string(yytext);} 
      | LE | GE;
 EqExp: RelExp | EqExp EqOp RelExp {
     $$ = new BinExpAST($2, $1, $3);
