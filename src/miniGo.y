@@ -121,7 +121,7 @@ FuncDef : FUNC IDENT '(' FuncFParamList ')' FuncType Block {
     auto ast = new FuncDefAST();
     ast->ident = *unique_ptr<string>($2);
     ast->func_type = pAST($6);
-    ast->block = pAST($7);
+    ast->body = pAST($7);
     $$ = ast;
 };
 
@@ -154,7 +154,11 @@ StmtList : /* empty */ {
     $$ = l;
 };
 
-ExpStmt : Exp;
+ExpStmt : Exp {
+    auto ast = new ExpStmtAST();
+    ast->exp = pAST($1);
+    $$ = ast;
+};
 IncDecStmt : LVal INC {
     // TODO
 } | LVal DEC {
@@ -195,43 +199,43 @@ IfStmt : IF Exp Block {
     auto ast = new IfStmtAST();
     ast->t = IfStmtAST::Type::If;
     ast->cond = pAST($2);
-    ast->thenBlock = pAST($3);
+    ast->body = pAST($3);
     $$ = ast;
 } | IF Exp Block ELSE Block {
     auto ast = new IfStmtAST();
     ast->t = IfStmtAST::Type::IfElse;
     ast->cond = pAST($2);
-    ast->thenBlock = pAST($3);
+    ast->body = pAST($3);
     ast->elseBlockStmt = pAST($5);
     $$ = ast;
 } | IF Exp Block ELSE IfStmt {
     auto ast = new IfStmtAST();
     ast->t = IfStmtAST::Type::IfElseIf;
     ast->cond = pAST($2);
-    ast->thenBlock = pAST($3);
+    ast->body = pAST($3);
     ast->elseBlockStmt = pAST($5);
     $$ = ast;
 } | IF SimpleStmt ';' Exp Block {
     auto ast = new IfStmtAST();
     ast->t = IfStmtAST::Type::If;
-    ast->beforeStmt = pAST($2);
+    ast->init = pAST($2);
     ast->cond = pAST($4);
-    ast->thenBlock = pAST($5);
+    ast->body = pAST($5);
     $$ = ast;
 } | IF SimpleStmt ';' Exp Block ELSE Block {
     auto ast = new IfStmtAST();
     ast->t = IfStmtAST::Type::IfElse;
-    ast->beforeStmt = pAST($2);
+    ast->init = pAST($2);
     ast->cond = pAST($4);
-    ast->thenBlock = pAST($5);
+    ast->body = pAST($5);
     ast->elseBlockStmt = pAST($7);
     $$ = ast;
 } | IF SimpleStmt ';' Exp Block ELSE IfStmt {
     auto ast = new IfStmtAST();
     ast->t = IfStmtAST::Type::IfElseIf;
-    ast->beforeStmt = pAST($2);
+    ast->init = pAST($2);
     ast->cond = pAST($4);
-    ast->thenBlock = pAST($5);
+    ast->body = pAST($5);
     ast->elseBlockStmt = pAST($7);
     $$ = ast;
 };
@@ -245,19 +249,19 @@ ReturnStmt : RETURN Exp {
 };
 ForStmt : FOR Block { // always
     auto ast = new ForStmtAST();
-    ast->block = pAST($2);
+    ast->body = pAST($2);
     $$ = ast;
 } | FOR Exp Block { // while
     auto ast = new ForStmtAST();
     ast->cond = pAST($2);
-    ast->block = pAST($3);
+    ast->body = pAST($3);
     $$ = ast;
 } | FOR SimpleStmt ';' Exp ';' SimpleStmt Block { // for
     auto ast = new ForStmtAST();
     ast->init = pAST($2);
     ast->cond = pAST($4);
-    ast->step = pAST($6);
-    ast->block = pAST($7);
+    ast->post = pAST($6);
+    ast->body = pAST($7);
     $$ = ast;
 };
 Stmt : Decl | IfStmt | ReturnStmt | SimpleStmt | ForStmt | Block;

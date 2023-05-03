@@ -11,6 +11,8 @@ class Object {
     BaseAST* Node;
 
     Object(string name, BaseAST* node) : Name(name), Node(node) {}
+    Object(string name, string mangledName, BaseAST* node)
+        : Name(name), MangledName(mangledName), Node(node) {}
     Object(string name, string mangledName)
         : Name(name), MangledName(mangledName), Node(nullptr) {}
 };

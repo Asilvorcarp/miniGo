@@ -18,6 +18,7 @@ enum class TType {
     // StmtT,
     VarSpecT,
     EmptyStmtT,
+    ExpStmtT,
     ReturnStmtT,
     BTypeT,
     ForStmtT,
@@ -61,7 +62,7 @@ class FuncDefAST : public BaseAST {
     TType ty = TType::FuncDefT;
     pAST func_type;
     string ident;
-    pAST block;
+    pAST body;
 
     TType type() const override { return ty; }
     json toJson() const override {
@@ -69,7 +70,7 @@ class FuncDefAST : public BaseAST {
         j["type"] = "FuncDefAST";
         j["func_type"] = func_type->toJson();
         j["ident"] = ident;
-        j["block"] = block->toJson();
+        j["body"] = body->toJson();
         return j;
     }
 };
@@ -310,8 +311,8 @@ class ForStmtAST : public StmtAST {
     TType ty = TType::ForStmtT;
     pAST init = make_unique<EmptyStmtAST>();
     pAST cond = make_unique<NumberAST>(1);
-    pAST step = make_unique<EmptyStmtAST>();
-    pAST block;
+    pAST post = make_unique<EmptyStmtAST>();
+    pAST body;
 
     TType type() const override { return ty; }
     json toJson() const override {
@@ -319,8 +320,8 @@ class ForStmtAST : public StmtAST {
         j["type"] = "ForStmtAST";
         j["init"] = init->toJson();
         j["cond"] = cond->toJson();
-        j["step"] = step->toJson();
-        j["block"] = block->toJson();
+        j["post"] = post->toJson();
+        j["body"] = body->toJson();
         return j;
     }
 };
@@ -404,12 +405,12 @@ class BinExpAST : public ExpAST {
         MUL,  // *
         DIV,  // /
         MOD,  // %
-        EQ,  // ==
-        NE,  // !=
-        LT,  // < // str
-        LE,  // <=
-        GT,  // > // str
-        GE,  // >=
+        EQ,   // ==
+        NE,   // !=
+        LT,   // < // str
+        LE,   // <=
+        GT,   // > // str
+        GE,   // >=
         AND,  // &&
         OR,   // ||
     } op;
@@ -418,7 +419,7 @@ class BinExpAST : public ExpAST {
 
     BinExpAST(char _op, BaseAST *ast1, BaseAST *ast2) {
         // assign op according to + - * / ...
-        if(_op == '+'){
+        if (_op == '+') {
             op = Op::ADD;
         } else if (_op == '-') {
             op = Op::SUB;
@@ -429,7 +430,7 @@ class BinExpAST : public ExpAST {
         } else if (_op == '%') {
             op = Op::MOD;
         } else {
-            cerr<<"BinExpAST: unknown char op"<<endl;
+            cerr << "BinExpAST: unknown char op" << endl;
             assert(false);
         }
         left = pAST(ast1);
@@ -437,7 +438,7 @@ class BinExpAST : public ExpAST {
     }
     BinExpAST(string *_op, BaseAST *ast1, BaseAST *ast2) {
         // assign op according to == != < <= > >= && ||
-        if(*_op == "=="){
+        if (*_op == "==") {
             op = Op::EQ;
         } else if (*_op == "!=") {
             op = Op::NE;
@@ -454,7 +455,7 @@ class BinExpAST : public ExpAST {
         } else if (*_op == "||") {
             op = Op::OR;
         } else {
-            cerr<<"BinExpAST: unknown string op"<<endl;
+            cerr << "BinExpAST: unknown string op" << endl;
             assert(false);
         }
         left = pAST(ast1);
@@ -476,10 +477,10 @@ class IfStmtAST : public StmtAST {
    public:
     TType ty = TType::IfStmtT;
     enum Type { If, IfElse, IfElseIf } t;
-    pAST beforeStmt = nullptr;
+    pAST init = nullptr;
     pAST cond;
-    pAST thenBlock;
-    // else block or if stmt
+    pAST body;
+    // else block or another if stmt
     pAST elseBlockStmt = nullptr;
 
     TType type() const override { return ty; }
@@ -487,14 +488,28 @@ class IfStmtAST : public StmtAST {
         json j;
         j["type"] = "IfStmtAST";
         j["t"] = t;
-        if (beforeStmt != nullptr) {
-            j["beforeStmt"] = beforeStmt->toJson();
+        if (init != nullptr) {
+            j["init"] = init->toJson();
         }
         j["cond"] = cond->toJson();
-        j["thenBlock"] = thenBlock->toJson();
+        j["body"] = body->toJson();
         if (elseBlockStmt != nullptr) {
             j["elseBlockStmt"] = elseBlockStmt->toJson();
         }
+        return j;
+    }
+};
+
+class ExpStmtAST : public StmtAST {
+   public:
+    TType ty = TType::ExpStmtT;
+    pAST exp;
+
+    TType type() const override { return ty; }
+    json toJson() const override {
+        json j;
+        j["type"] = "ExpStmtAST";
+        j["exp"] = exp->toJson();
         return j;
     }
 };
