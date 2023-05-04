@@ -393,12 +393,17 @@ class Compiler {
                      << endl;
                 assert(false);
             }
-            // TODO maybe not support a[x]++
             auto varMName = obj->MangledName;
+            if (obj->Node->info() != "i32") {
+                // TODO not support a[x]++
+                cerr << "IncDecStmt: not support array" << endl;
+                assert(false);
+            }
             auto localName = genId();
             os << "\t" << localName << " = load i32, i32* " << varMName
                << ", align 4\n";
-            os << "\t" << localName << " = " << op << " i32 " << varMName << ", "
+            os << "\t" << localName << " = " << op << " i32 " << varMName
+               << ", "
                << "1" << endl;
             os << "\tstore i32 " << localName << ", i32* " << varMName
                << ", align 4\n";
