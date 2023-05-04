@@ -39,17 +39,23 @@ void build(string inFile, string outLL) {
     // cout << *ast << endl;
 
     // output ast to json file
-    FILE *jsonFp = fopen("ast.o.json", "w");
-    fprintf(jsonFp, "%s", ast->toJson().dump(4).c_str());
-    fclose(jsonFp);
+    FILE *astFp = fopen("ast_static.o.json", "w");
+    fprintf(astFp, "%s", ast->toJson().dump(4).c_str());
+    fclose(astFp);
 
     // >> compile to .ll
     auto compiler = Compiler();
+
 #ifdef YYDEBUG
     compiler.debug = true;
 #endif
     auto unit = reinterpret_cast<CompUnitAST *>(ast.get());
     string ll = compiler.Compile(unit);
+
+    // output ast with dynamic information to json file
+    FILE *astDFp = fopen("ast_dynamic.o.json", "w");
+    fprintf(astDFp, "%s", ast->toJson().dump(4).c_str());
+    fclose(astDFp);
 
     // print ll to file output
     FILE *fp = fopen(outLL.c_str(), "w");

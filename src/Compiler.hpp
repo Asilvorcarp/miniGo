@@ -386,23 +386,22 @@ class Compiler {
         } else if (stmt->type() == TType::IncDecStmtT) {
             auto stmt6 = reinterpret_cast<IncDecStmtAST*>(stmt);
             auto tar = reinterpret_cast<LValAST*>(stmt6->target.get());
-            // binExp
-            char op = stmt6->isInc ? '+' : '-';
-            auto binExp = new BinExpAST(op, tar, new NumberAST(1));
-            // assignAST
-            auto assignAST = new ShortVarDeclAST();
-            auto newTar = new LValAST();
-            newTar->ident = tar->ident;
-            auto newIndexList = new vector<pAST>();
-            newTar->indexList = pvpAST(newIndexList);
-            assignAST->isDefine = false;
-            auto newTars = new vector<pAST>();
-            newTars->push_back(pAST(newTar));
-            assignAST->targets = pvpAST(newTars);
-            auto newInitVals = new vector<pAST>();
-            newInitVals->push_back(pAST(binExp));
-            assignAST->initVals = pvpAST(newInitVals);
-            compileStmt_assign(os, pAST(assignAST));
+            auto obj = scope->Lookup(tar->ident).second;
+            string op = stmt6->isInc ? "add" : "sub";
+            if (obj == nullptr) {
+                cerr << "IncDecStmt: undefined variable: " << tar->ident
+                     << endl;
+                assert(false);
+            }
+            // TODO maybe not support a[x]++
+            auto varMName = obj->MangledName;
+            auto localName = genId();
+            os << "\t" << localName << " = load i32, i32* " << varMName
+               << ", align 4\n";
+            os << "\t" << localName << " = " << op << " i32 " << varMName << ", "
+               << "1" << endl;
+            os << "\tstore i32 " << localName << ", i32* " << varMName
+               << ", align 4\n";
         } else {
             cerr << "unknown stmt type" << endl;
             assert(false);
@@ -670,6 +669,41 @@ class Compiler {
         return localName;
     }
 
+    // TODO test this
+    // change "[5 x [4 x i32]]" to "[4 x i32]"
+    // change "i32**" to "i32*"
+    string reduceDim(string t) {
+        int i = 0;
+        while (i < t.size() && t[i] != 'x') i++;
+        if (i == t.size()) {
+            if (t.find("*") != string::npos) {
+                return t.substr(0, t.size() - 1);
+            } else {
+                cerr << "reduceDim: not an array type" << endl;
+                assert(false);
+            }
+        }
+        int j = t.size() - 1;
+        while (j >= 0 && t[j] != ']') j--;
+        if (j == -1) {
+            if (t.find("*") != string::npos) {
+                return t.substr(0, t.size() - 1);
+            } else {
+                cerr << "reduceDim: not an array type" << endl;
+                assert(false);
+            }
+        }
+        string res = t.substr(i + 2, j - i - 2);
+        return res;
+    }
+
+    string reduceDim(string t, int dim) {
+        for (int i = 0; i < dim; i++) {
+            t = reduceDim(t);
+        }
+        return t;
+    }
+
     string inferType(const pAST& _expr) {
         auto expr = reinterpret_cast<ExpAST*>(_expr.get());
         if (expr->type() == TType::NumberT) {
@@ -703,13 +737,17 @@ class Compiler {
         } else if (expr->type() == TType::LValT) {
             auto exp = reinterpret_cast<LValAST*>(expr);
             auto obj = scope->Lookup(exp->ident).second;
-            if (obj != nullptr) {
-                return obj->Node->info();
-            } else {
+            if (obj == nullptr) {
                 cerr << "inferType: variable " << exp->ident << " undefined"
                      << endl;
                 assert(false);
             }
+            auto baseType = obj->Node->info();
+            if (exp->indexList == nullptr) {
+                cerr << "inferType: indexList is null" << endl;
+                assert(false);
+            }
+            return reduceDim(baseType, exp->indexList->size());
         } else {
             cerr << "inferType: unknown type of ExpAST" << endl;
             assert(false);

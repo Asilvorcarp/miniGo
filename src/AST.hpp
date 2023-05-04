@@ -471,7 +471,7 @@ class ForStmtAST : public StmtAST {
     }
 };
 
-// now include Assign, TODO rename
+// including = and :=, TODO rename
 class ShortVarDeclAST : public StmtAST {
    public:
     TType ty = TType::ShortVarDeclT;
@@ -484,7 +484,7 @@ class ShortVarDeclAST : public StmtAST {
         json j;
         j["type"] = "ShortVarDecl";
         j["isDefine"] = isDefine;
-        j["Targets"] = json::array();
+        j["targets"] = json::array();
         for (auto &tar : *targets) {
             j["targets"].push_back(tar->toJson());
         }
@@ -537,6 +537,9 @@ class LValAST : public ExpAST {
             for (auto &index : *indexList) {
                 j["indexList"].push_back(index->toJson());
             }
+        }
+        if (typeInfo != "") {
+            j["typeInfo"] = typeInfo;
         }
         return j;
     }
