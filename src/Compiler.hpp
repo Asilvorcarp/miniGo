@@ -188,7 +188,7 @@ class Compiler {
         os << "}\n";
     }
 
-    void compileStmt(ostream& os, pAST& _stmt) {
+    void compileStmt(ostream& os, const pAST& _stmt) {
         // stmt: *StmtAST
         auto stmt = reinterpret_cast<StmtAST*>(_stmt.get());
         if (debug) {
@@ -360,17 +360,34 @@ class Compiler {
         } else if (stmt->type() == TType::EmptyStmtT) {
             // do nothing
         } else if (stmt->type() == TType::IncDecStmtT) {
-            // TODO
-            cerr << "TODO support IncDecStmtAST" << endl;
-            assert(false);
+            auto stmt6 = reinterpret_cast<IncDecStmtAST*>(stmt);
+            auto tar = reinterpret_cast<LValAST*>(stmt6->target.get());
+            // binExp
+            char op = stmt6->isInc ? '+' : '-';
+            auto binExp = new BinExpAST(op, tar, new NumberAST(1));
+            // assignAST
+            auto assignAST = new ShortVarDeclAST();
+            auto newTar = new LValAST();
+            newTar->ident = tar->ident;
+            auto newIndexList = new vector<pAST>();
+            newTar->indexList = pvpAST(newIndexList);
+            assignAST->isDefine = false;
+            auto newTars = new vector<pAST>();
+            newTars->push_back(pAST(newTar));
+            assignAST->targets = pvpAST(newTars);
+            auto newInitVals = new vector<pAST>();
+            newInitVals->push_back(pAST(binExp));
+            assignAST->initVals = pvpAST(newInitVals);
+            compileStmt_assign(os, pAST(assignAST));
         } else {
             cerr << "unknown stmt type" << endl;
             assert(false);
         }
     }
 
-    void compileStmt_assign(ostream& os, pAST& _stmt) {
+    void compileStmt_assign(ostream& os, const pAST& _stmt) {
         // stmt: *ShortVarDeclAST
+        // TODO, for now, any short var decl is int, not support array
         auto stmt = reinterpret_cast<ShortVarDeclAST*>(_stmt.get());
         auto& targets = *stmt->targets;
         auto& initVals = *stmt->initVals;
@@ -384,9 +401,9 @@ class Compiler {
                 // TODO support index (tar->indexList)
                 if (!scope->HasName(tar->ident)) {
                     stringstream ss;
-                    // TODO !!! can we remove pos ??? !!!
                     ss << "%local_" << tar->ident << "." << varSuffix++;
                     auto mangledName = ss.str();
+                    // TODO give the inserted target info of its type
                     scope->Insert(
                         new Object(tar->ident, mangledName, target.get()));
                     os << "\t" << mangledName << " = alloca i32, align 4\n";
@@ -408,7 +425,7 @@ class Compiler {
         }
     }
 
-    string compileExpr(ostream& os, pAST& _expr) {
+    string compileExpr(ostream& os, const pAST& _expr) {
         // expr: *ExpAST
         auto expr = reinterpret_cast<ExpAST*>(_expr.get());
         if (debug) {
@@ -558,10 +575,20 @@ class Compiler {
                      << " undefined" << endl;
                 assert(false);
             }
+            auto funcDefAST = dynamic_cast<FuncDefAST*>(obj->Node);
             localName = genId();
-            auto arg0 = compileExpr(os, (*exp5->argList)[0]);
-            os << "\t" << localName << " = call i32(i32) " << funcName
-               << "(i32 " << arg0 << ")" << endl;
+            // get return type and param types
+            auto paramTypes = funcDefAST->getParamTypes();
+            string funcType = funcDefAST->info();
+            os << "\t" << localName << " = call " << funcType << " " << funcName
+               << "(";
+            // args
+            for (int i = 0; i < exp5->argList->size(); i++) {
+                auto argName = compileExpr(os, exp5->argList->at(i));
+                // TODO check type, now get type from params of func def
+                os << paramTypes->at(i) << " " << argName << ", ";
+            }
+            os << ")" << endl;
             return localName;
         } else {
             cerr << "compileExpr: unknown type of ExpAST" << endl;

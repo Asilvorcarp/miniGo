@@ -132,14 +132,10 @@ FuncDef : FUNC IDENT '(' ParamList ')' ReturnType Block {
 };
 
 ReturnType : /* empty */ {
-    auto ast = new ReturnTypeAST();
-    // default void type
+    auto ast = new BTypeAST();
+    ast->elementType = "void";
     $$ = ast;
-} | BType {
-    auto ast = new ReturnTypeAST();
-    ast->t = "int"; // TODO
-    $$ = ast;
-};
+} | BType;
 
 Block : '{' StmtList '}' {
     auto ast = new BlockAST();

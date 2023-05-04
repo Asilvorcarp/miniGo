@@ -14,14 +14,13 @@ enum class TType {
     CompUnitT,
     FuncDefT,
     ParamT,
-    ReturnRypeT,
     BlockT,
+    BTypeT,
     // StmtT,
     VarSpecT,
     EmptyStmtT,
     ExpStmtT,
     ReturnStmtT,
-    BTypeT,
     ForStmtT,
     BranchStmtT,
     IncDecStmtT,
@@ -36,7 +35,7 @@ enum class TType {
     ParenExpT,
     CallExpT,
     // for future use
-    _0,
+    RuntimeFuncT,
     _1,
     _2,
     _3
@@ -52,6 +51,8 @@ class BaseAST {
         return os << ast.toJson().dump(4);
     }
     virtual void add(BaseAST *ast){};
+    // some of AST implement this to get type info
+    virtual string info() const { return "base"; }
 };
 
 using pAST = unique_ptr<BaseAST>;
@@ -96,11 +97,34 @@ class FuncDefAST : public BaseAST {
     TType ty = TType::FuncDefT;
     string ident;
     pvpAST paramList;
-    pAST retType;
+    pAST retType;  // BType
     pAST body;
 
-    TType type() const override { return ty; }
-    json toJson() const override {
+    virtual string getRetType() {
+        if (retType == nullptr) {
+            cerr << "retType is nullptr" << endl;
+            assert(false);
+        }
+        return retType->info();
+    }
+    virtual vector<string> *getParamTypes() {
+        auto ret = new vector<string>();
+        for (auto &param : *paramList) {
+            ret->push_back(param->info());
+        }
+        return ret;
+    }
+    virtual string info() const override {
+        string ret = retType->info() + " (";
+        for (int i = 0; i < paramList->size(); i++) {
+            ret += paramList->at(i)->info();
+            if (i != paramList->size() - 1) ret += ", ";
+        }
+        ret += ")";
+        return ret;
+    }
+    virtual TType type() const override { return ty; }
+    virtual json toJson() const override {
         json j;
         j["type"] = "FuncDefAST";
         j["ident"] = ident;
@@ -110,6 +134,41 @@ class FuncDefAST : public BaseAST {
         }
         j["retType"] = retType->toJson();
         j["body"] = body->toJson();
+        return j;
+    }
+};
+
+class RuntimeFuncAST : public FuncDefAST {
+   public:
+    TType ty = TType::RuntimeFuncT;
+    string llRetType;
+    pvStr paramTypes;
+
+    RuntimeFuncAST(string llRetType, vector<string> *paramTypes)
+        : llRetType(llRetType), paramTypes(pvStr(paramTypes)) {
+        this->ident = "some_runtime_func";
+    }
+
+    string getRetType() override { return llRetType; }
+    vector<string> *getParamTypes() override { return paramTypes.get(); }
+    string info() const override {
+        string ret = llRetType + " (";
+        for (int i = 0; i < paramTypes->size(); i++) {
+            ret += paramTypes->at(i);
+            if (i != paramTypes->size() - 1) ret += ", ";
+        }
+        ret += ")";
+        return ret;
+    }
+    TType type() const override { return ty; }
+    json toJson() const override {
+        json j;
+        j["type"] = "RuntimeFuncAST";
+        j["llRetType"] = llRetType;
+        j["paramTypes"] = json::array();
+        for (auto &paramType : *paramTypes) {
+            j["paramTypes"].push_back(paramType);
+        }
         return j;
     }
 };
@@ -156,6 +215,7 @@ class ParamAST : public BaseAST {
     string ident;
     pAST t;  // BType
 
+    string info() const override { return t->info(); }
     TType type() const override { return ty; }
     json toJson() const override {
         json j;
@@ -166,19 +226,20 @@ class ParamAST : public BaseAST {
     }
 };
 
-class ReturnTypeAST : public BaseAST {
-   public:
-    TType ty = TType::ReturnRypeT;
-    string t = "void";  // default void
+// class ReturnTypeAST : public BaseAST {
+//    public:
+//     TType ty = TType::ReturnRypeT;
+//     string t = "void";  // default void
 
-    TType type() const override { return ty; }
-    json toJson() const override {
-        json j;
-        j["type"] = "ReturnTypeAST";
-        j["t"] = t;
-        return j;
-    }
-};
+//     string info() const override { return t; }
+//     TType type() const override { return ty; }
+//     json toJson() const override {
+//         json j;
+//         j["type"] = "ReturnTypeAST";
+//         j["t"] = t;
+//         return j;
+//     }
+// };
 
 class BlockAST : public BaseAST {
    public:
@@ -266,18 +327,44 @@ class NumberAST : public ExpAST {
 class BTypeAST : public BaseAST {
    public:
     TType ty = TType::BTypeT;
+    // can be void if it is a function return type
     string elementType = "int";
-    // -1 for "[]" (pointer), never be nullptr
-    unique_ptr<vector<int>> dims;
+    // -1 for "[]" (pointer), can be nullptr or empty
+    unique_ptr<vector<int>> dims = nullptr;
 
+    // get type of llvm format
+    // like [10 x [10 x i32*]] for [10][10][]int
+    string info() const override {
+        string ret;
+        if (elementType == "int") {
+            ret = "i32";
+        } else if (elementType == "void") {
+            return "void";
+        } else {
+            cerr << "BTypeAST error: unknown element type" << endl;
+            assert(false);
+        }
+        if (dims != nullptr && !dims->empty()) {
+            for (auto &dim : *dims) {
+                if (dim == -1) {
+                    ret += "*";
+                } else {
+                    ret = "[" + to_string(dim) + " x " + ret + "]";
+                }
+            }
+        }
+        return ret;
+    }
     TType type() const override { return ty; }
     json toJson() const override {
         json j;
-        j["type"] = "BType";
+        j["type"] = "BTypeAST";
         j["elementType"] = elementType;
-        j["dims"] = json::array();
-        for (auto &dim : *dims) {
-            j["dims"].push_back(dim);
+        if (dims != nullptr && !dims->empty()) {
+            j["dims"] = json::array();
+            for (auto &dim : *dims) {
+                j["dims"].push_back(dim);
+            }
         }
         return j;
     }
@@ -523,33 +610,33 @@ class BinExpAST : public ExpAST {
     int eval() const override {
         auto lExp = dynamic_cast<const ExpAST *>(left.get());
         auto rExp = dynamic_cast<const ExpAST *>(right.get());
-        if(op==Op::ADD){
+        if (op == Op::ADD) {
             return lExp->eval() + rExp->eval();
-        }else if(op==Op::SUB){
+        } else if (op == Op::SUB) {
             return lExp->eval() - rExp->eval();
-        }else if(op==Op::MUL){
+        } else if (op == Op::MUL) {
             return lExp->eval() * rExp->eval();
-        }else if(op==Op::DIV){
+        } else if (op == Op::DIV) {
             return lExp->eval() / rExp->eval();
-        }else if(op==Op::MOD){
+        } else if (op == Op::MOD) {
             return lExp->eval() % rExp->eval();
-        }else if(op==Op::EQ){
+        } else if (op == Op::EQ) {
             return lExp->eval() == rExp->eval();
-        }else if(op==Op::NE){
+        } else if (op == Op::NE) {
             return lExp->eval() != rExp->eval();
-        }else if(op==Op::LT){
+        } else if (op == Op::LT) {
             return lExp->eval() < rExp->eval();
-        }else if(op==Op::LE){
+        } else if (op == Op::LE) {
             return lExp->eval() <= rExp->eval();
-        }else if(op==Op::GT){
+        } else if (op == Op::GT) {
             return lExp->eval() > rExp->eval();
-        }else if(op==Op::GE){
+        } else if (op == Op::GE) {
             return lExp->eval() >= rExp->eval();
-        }else if(op==Op::AND){
+        } else if (op == Op::AND) {
             return lExp->eval() && rExp->eval();
-        }else if(op==Op::OR){
+        } else if (op == Op::OR) {
             return lExp->eval() || rExp->eval();
-        }else{
+        } else {
             cerr << "error: unknown op" << endl;
             assert(false);
             return -1;

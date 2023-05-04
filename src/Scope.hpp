@@ -8,13 +8,14 @@ class Object {
    public:
     string Name;
     string MangledName;
+    // FuncDefAST, VarSpecAST, LValAST(TODO this now has no type info)
     BaseAST* Node;
 
     Object(string name, BaseAST* node) : Name(name), Node(node) {}
     Object(string name, string mangledName, BaseAST* node)
         : Name(name), MangledName(mangledName), Node(node) {}
-    Object(string name, string mangledName)
-        : Name(name), MangledName(mangledName), Node(nullptr) {}
+    // Object(string name, string mangledName)
+    //     : Name(name), MangledName(mangledName), Node(nullptr) {}
 };
 
 class Scope {
@@ -60,12 +61,24 @@ class Scope {
 
     static Scope* Universe() {
         auto universe = new Scope(nullptr);
-        universe->Insert(new Object("getchar", "@runtime_getchar"));
-        universe->Insert(new Object("getint", "@runtime_getint"));
-        universe->Insert(new Object("putchar", "@runtime_putchar"));
-        universe->Insert(new Object("putint", "@runtime_putint"));
-        universe->Insert(new Object("println", "@runtime_println"));
-        universe->Insert(new Object("exit", "@runtime_exit"));
+        universe->Insert(
+            new Object("getchar", "@runtime_getchar",
+                       new RuntimeFuncAST("i32", new vector<string>())));
+        universe->Insert(
+            new Object("getint", "@runtime_getint",
+                       new RuntimeFuncAST("i32", new vector<string>())));
+        universe->Insert(
+            new Object("putchar", "@runtime_putchar",
+                       new RuntimeFuncAST("i32", new vector<string>{"i32"})));
+        universe->Insert(
+            new Object("putint", "@runtime_putint",
+                       new RuntimeFuncAST("i32", new vector<string>{"i32"})));
+        universe->Insert(
+            new Object("println", "@runtime_println",
+                       new RuntimeFuncAST("i32", new vector<string>{"i32"})));
+        universe->Insert(
+            new Object("exit", "@runtime_exit",
+                       new RuntimeFuncAST("i32", new vector<string>{"i32"})));
         return universe;
     }
 };
