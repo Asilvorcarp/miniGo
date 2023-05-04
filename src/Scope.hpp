@@ -11,11 +11,9 @@ class Object {
     // FuncDefAST, VarSpecAST, LValAST(TODO this now has no type info)
     BaseAST* Node;
 
-    Object(string name, BaseAST* node) : Name(name), Node(node) {}
+    Object() = delete;
     Object(string name, string mangledName, BaseAST* node)
         : Name(name), MangledName(mangledName), Node(node) {}
-    // Object(string name, string mangledName)
-    //     : Name(name), MangledName(mangledName), Node(nullptr) {}
 };
 
 class Scope {
@@ -84,7 +82,6 @@ class Scope {
 };
 
 const static string Header = R"(
-
 target triple = "x86_64-pc-linux-gnu"
 
 declare i32 @runtime_getchar()
