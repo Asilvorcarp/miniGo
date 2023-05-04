@@ -293,14 +293,16 @@ class Compiler {
             enterScope();
             {
                 os << "\n" << forInit << ":\n";
-                if (stmt2->init != nullptr) {
+                if (stmt2->init != nullptr &&
+                    stmt2->init->type() != TType::EmptyStmtT) {
                     compileStmt(os, stmt2->init);
                 }
                 os << "\tbr label %" << forCond << "\n";
 
                 // for.cond
                 os << "\n" << forCond << ":\n";
-                if (stmt2->cond != nullptr) {
+                if (stmt2->cond != nullptr &&
+                    stmt2->cond->type() != TType::EmptyStmtT) {
                     auto cond = compileExpr(os, stmt2->cond);
                     os << "\tbr i1 " << cond << ", label %" << forBody
                        << ", label %" << forEnd << "\n";
@@ -319,7 +321,8 @@ class Compiler {
                 // for.post
                 {
                     os << "\n" << forPost << ":\n";
-                    if (stmt2->post != nullptr) {
+                    if (stmt2->post != nullptr &&
+                        stmt2->post->type() != TType::EmptyStmtT) {
                         compileStmt(os, stmt2->post);
                     }
                     os << "\tbr label %" << forCond << "\n";
@@ -439,8 +442,11 @@ class Compiler {
         } else if (expr->type() == TType::BinExpT) {
             auto exp2 = reinterpret_cast<BinExpAST*>(expr);
             localName = genId();
+            clog << ">> doing left" << endl;
             auto left = compileExpr(os, exp2->left);
+            clog << ">> doing right" << endl;
             auto right = compileExpr(os, exp2->right);
+            clog << ">> done right" << endl;
             switch (exp2->op) {
                 case BinExpAST::Op::ADD:
                     os << "\t" << localName << " = "
@@ -507,6 +513,18 @@ class Compiler {
                     os << "\t" << localName << " = "
                        << "icmp sge"
                        << " i32 " << left << ", " << right << endl;
+                    return localName;
+                    break;
+                case BinExpAST::Op::AND:
+                    os << "\t" << localName << " = "
+                       << "and"
+                       << " i1 " << left << ", " << right << endl;
+                    return localName;
+                    break;
+                case BinExpAST::Op::OR:
+                    os << "\t" << localName << " = "
+                       << "or"
+                       << " i1 " << left << ", " << right << endl;
                     return localName;
                     break;
                 default:
