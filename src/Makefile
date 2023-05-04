@@ -2,23 +2,34 @@
 
 all: miniGo
 
-debug:
-	flex -o miniGo.yy.cpp miniGo.l
-	bison -t miniGo.y -o miniGo.tab.hpp
-	# show bison parsing trace
-	clang++ -o miniGo.out miniGo.yy.cpp main.cpp -I. -DYYDEBUG -std=c++20
+CFLAGS = -std=c++20 -I.
+# show bison parsing trace
+DEBUGFLAG = -DYYDEBUG
 
 miniGo:
 	@echo "--- Build Compiler ---"
 	flex -o miniGo.yy.cpp miniGo.l
 	bison -t miniGo.y -o miniGo.tab.hpp
-	clang++ -o miniGo.out miniGo.yy.cpp main.cpp -I. -std=c++20
+	clang++ -o miniGo.out miniGo.yy.cpp main.cpp $(CFLAGS)
 
-test: clean miniGo
+ll: miniGo
 	@echo "--- Build Runtime ---"
 	clang -S -emit-llvm runtime.c -o runtime.o.ll
-	@echo "--- Build Main ---"
+	@echo "--- Build Main LL ---"
 	./miniGo.out ../debug/main.go -o ../debug/main.o.ll
+
+debugLL: 
+	@echo "--- Build Compiler ---"
+	flex -o miniGo.yy.cpp miniGo.l
+	bison -t miniGo.y -o miniGo.tab.hpp
+	clang++ -o miniGo.out miniGo.yy.cpp main.cpp $(CFLAGS) $(DEBUGFLAG)
+	@echo "--- Build Runtime ---"
+	clang -S -emit-llvm runtime.c -o runtime.o.ll
+	@echo "--- Build Main LL ---"
+	./miniGo.out ../debug/main.go -o ../debug/main.o.ll
+
+test: ll
+	@echo "--- Build Main ---"
 	clang runtime.o.ll ../debug/main.o.ll -o ../debug/main.out
 	@echo "--- Start Main ---"	
 	@../debug/main.out

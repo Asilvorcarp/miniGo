@@ -70,7 +70,6 @@ class Scope {
     }
 };
 
-// TODO remove ugo!
 const static string Header = R"(
 
 target triple = "x86_64-pc-linux-gnu"
