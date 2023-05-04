@@ -43,14 +43,14 @@ using namespace std;
 // lexer 返回的所有 token 种类的声明
 // 注意 IDENT 和 INT_CONST 会返回 token 的值, 分别对应 str_val 和 int_val
 %token INT RETURN PACKAGE IMPORT IF ELSE FOR DEFINE
-    WHILE BREAK CONTINUE DEFER GOTO VAR FUNC CONST
+    BREAK CONTINUE DEFER GOTO VAR FUNC CONST
     INC DEC
 %token <str_val> IDENT LE GE EQ NE AND OR
 %token <int_val> INT_CONST
 %token <char_val> '+' '-' '*' '/' '%' '!' '&' '|' '^' '<' '>' '='
 
 // 非终结符的类型定义
-%type <ast_val> FuncDef ReturnType Block Stmt ReturnStmt Exp ExpStmt IncDecStmt AssignStmt ShortVarDecl LVal Param BType TopLevelDecl PrimaryExp UnaryExp MulExp AddExp RelExp EqExp LAndExp LOrExp ConstExp VarDecl ConstDecl VarSpec ConstSpec ForStmt SimpleStmt Decl IfStmt InitVal ConstInitVal
+%type <ast_val> FuncDef ReturnType Block Stmt ReturnStmt Exp ExpStmt IncDecStmt AssignStmt ShortVarDecl LVal Param BType TopLevelDecl PrimaryExp UnaryExp MulExp AddExp RelExp EqExp LAndExp LOrExp ConstExp VarDecl ConstDecl VarSpec ConstSpec ForStmt SimpleStmt Decl IfStmt InitVal ConstInitVal BranchStmt
 %type <int_val> Number
 %type <char_val> AddOp MulOp UnaryOp
 %type <str_val> RelOp EqOp PackClause
@@ -251,6 +251,21 @@ ReturnStmt : RETURN Exp {
     auto ast = new ReturnStmtAST();
     $$ = ast;
 };
+// BREAK, CONTINUE, GOTO
+BranchStmt : BREAK {
+    auto ast = new BranchStmtAST();
+    ast->t = BranchStmtAST::Type::Break;
+    $$ = ast;
+} | CONTINUE {
+    auto ast = new BranchStmtAST();
+    ast->t = BranchStmtAST::Type::Continue;
+    $$ = ast;
+} | GOTO IDENT {
+    auto ast = new BranchStmtAST();
+    ast->t = BranchStmtAST::Type::Goto;
+    ast->ident = *unique_ptr<string>($2);
+    $$ = ast;
+};
 ForStmt : FOR Block { // always
     auto ast = new ForStmtAST();
     ast->body = pAST($2);
@@ -268,7 +283,7 @@ ForStmt : FOR Block { // always
     ast->body = pAST($7);
     $$ = ast;
 };
-Stmt : Decl | IfStmt | ReturnStmt | SimpleStmt | ForStmt | Block;
+Stmt : Decl | IfStmt | ReturnStmt | SimpleStmt | ForStmt | Block | BranchStmt ;
 
 // var i, j int = 1, 2
 // var c, python, java = true, false, "no!"

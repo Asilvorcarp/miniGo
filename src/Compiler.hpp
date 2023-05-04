@@ -188,7 +188,6 @@ class Compiler {
         os << "}\n";
     }
 
-    //TODO test scope enter/leave
     void compileStmt(ostream& os, pAST& _stmt) {
         // stmt: *StmtAST
         auto stmt = reinterpret_cast<StmtAST*>(_stmt.get());
@@ -353,6 +352,8 @@ class Compiler {
                 // return void:
                 os << "\tret void\n";
             }
+        } else if (stmt->type() == TType::BranchStmtT) {
+            // TODO support BranchStmtAST
         } else {
             cerr << "unknown stmt type" << endl;
             assert(false);

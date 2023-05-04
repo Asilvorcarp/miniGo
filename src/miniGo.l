@@ -50,7 +50,6 @@ Hexadecimal   0[xX][0-9a-fA-F]+
 "if"            { return IF; }
 "else"          { return ELSE; }
 "for"           { return FOR; }
-"while"         { return WHILE; }
 "break"         { return BREAK; }
 "continue"      { return CONTINUE; }
 "defer"         { return DEFER; }

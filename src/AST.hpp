@@ -13,7 +13,8 @@ using namespace std;
 enum class TType {
     CompUnitT,
     FuncDefT,
-    FuncTypeT,
+    ParamT,
+    ReturnRypeT,
     BlockT,
     // StmtT,
     VarSpecT,
@@ -33,8 +34,7 @@ enum class TType {
     ParenExpT,
     CallExpT,
     // for future use
-    ParamT,
-    _1
+    BranchStmtT
 };
 
 // 所有 AST 的基类
@@ -160,7 +160,7 @@ class ParamAST : public BaseAST {
 
 class ReturnTypeAST : public BaseAST {
    public:
-    TType ty = TType::FuncTypeT;
+    TType ty = TType::ReturnRypeT;
     string t = "void";  // default void
 
     TType type() const override { return ty; }
@@ -527,6 +527,24 @@ class ExpStmtAST : public StmtAST {
         json j;
         j["type"] = "ExpStmtAST";
         j["exp"] = exp->toJson();
+        return j;
+    }
+};
+
+class BranchStmtAST : public StmtAST {
+   public:
+    TType ty = TType::BranchStmtT;
+    enum Type { Break, Continue, Goto } t;
+    string ident = "";
+
+    TType type() const override { return ty; }
+    json toJson() const override {
+        json j;
+        j["type"] = "BranchStmtAST";
+        j["t"] = t;
+        if (t == Type::Goto) {
+            j["ident"] = ident;
+        }
         return j;
     }
 };
