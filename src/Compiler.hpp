@@ -135,6 +135,8 @@ class Compiler {
 
     void compileFunc(ostream& os, CompUnitAST* file, FuncDefAST* fn) {
         auto paramMNameList = vector<string>();
+        auto retType = fn->getRetType();
+        auto paramTypes = fn->getParamTypes();
         for (auto& _param : *fn->paramList) {
             auto param = reinterpret_cast<ParamAST*>(_param.get());
             stringstream ss;
@@ -145,15 +147,16 @@ class Compiler {
 
         // TODO add func decl option in .y and AST
         if (fn->body == nullptr) {
-            os << "declare i32 @" << file->packageName << "_" << fn->ident
-               << "()\n";
+            os << "declare " << retType << " @" << file->packageName << "_"
+               << fn->ident << "()\n";
             return;
         }
         os << endl;
-        os << "define i32 @" << file->packageName << "_" << fn->ident << "(";
+        os << "define " << retType << " @" << file->packageName << "_"
+           << fn->ident << "(";
         // params list
         for (int i = 0; i < paramMNameList.size(); i++) {
-            os << "i32 " << paramMNameList[i] << ".arg" << i;
+            os << paramTypes->at(i) << " " << paramMNameList[i] << ".arg" << i;
             if (i != paramMNameList.size() - 1) {
                 os << ", ";
             }
