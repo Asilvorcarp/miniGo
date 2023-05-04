@@ -34,12 +34,20 @@ void build(string inFile, string outLL) {
 
     assert(!ret);
 
-    // print ast as json
-    cout << ">> ast: " << endl;
-    cout << *ast << endl;
+    // // print ast as json
+    // cout << ">> ast: " << endl;
+    // cout << *ast << endl;
+
+    // output ast to json file
+    FILE *jsonFp = fopen("ast.o.json", "w");
+    fprintf(jsonFp, "%s", ast->toJson().dump(4).c_str());
+    fclose(jsonFp);
 
     // >> compile to .ll
     auto compiler = Compiler();
+#ifdef YYDEBUG
+    compiler.debug = true;
+#endif
     auto unit = reinterpret_cast<CompUnitAST *>(ast.get());
     string ll = compiler.Compile(unit);
 

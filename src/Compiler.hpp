@@ -10,14 +10,15 @@ class Compiler {
     CompUnitAST* file;
     Scope* scope;
     // id for generated temp (%t0, %t1, ...) and labels, use with ++
-    int nextId;
+    int nextId = 0;
     // avoid conflict of vars in different scope but with the same name, use with ++
-    int varSuffix;
+    int varSuffix = 0;
     // suffix for each group of generated labels, use with ++
-    int labelSuffix;
+    int labelSuffix = 0;
+    // whether print debug info or not
+    bool debug = false;
 
-    Compiler()
-        : scope(Scope::Universe()), nextId(0), varSuffix(0), labelSuffix(0) {}
+    Compiler() : scope(Scope::Universe()) {}
     ~Compiler() {}
 
     string Compile(CompUnitAST* _file) {
@@ -134,8 +135,7 @@ class Compiler {
             return;
         }
         os << endl;
-        os << "define i32 @" << file->packageName << "_" << fn->ident
-           << "(";
+        os << "define i32 @" << file->packageName << "_" << fn->ident << "(";
         // params list
         for (int i = 0; i < paramMNameList.size(); i++) {
             os << "i32 " << paramMNameList[i] << ".arg" << i;
@@ -191,22 +191,20 @@ class Compiler {
     void compileStmt(ostream& os, pAST& _stmt) {
         // stmt: *StmtAST
         auto stmt = reinterpret_cast<StmtAST*>(_stmt.get());
-        string localName;
-        string mangledName;
-        string firstId;
+        if (debug) {
+            clog << ">> compileStmt " << *stmt << endl;
+        }
         stringstream ss;
-        string ifInit, ifCond, ifBody, ifElse, ifEnd;
-        string forInit, forCond, forBody, forPost, forEnd;
         if (stmt->type() == TType::VarSpecT) {
             // TODO now only support one spec
             auto stmt0 = reinterpret_cast<VarSpecAST*>(stmt);
-            localName = "0";
+            string localName = "0";
             if (stmt0->initVals->size() > 0) {
                 localName = compileExpr(os, (*stmt0->initVals)[0]);
             }
-            firstId = (*stmt0->idents)[0];
+            auto firstId = (*stmt0->idents)[0];
             ss << "%local_" << firstId << "." << varSuffix++;
-            mangledName = ss.str();
+            auto mangledName = ss.str();
             scope->Insert(new Object(firstId, mangledName, stmt0));
             os << "\t" << mangledName << " = alloca i32, align 4\n";
             os << "\tstore i32 " << localName << ", i32* " << mangledName
@@ -218,11 +216,11 @@ class Compiler {
             auto ifre1 = scope;
             enterScope();
             ss << labelSuffix++;
-            ifInit = genLabelId("if.init" + ss.str());
-            ifCond = genLabelId("if.cond" + ss.str());
-            ifBody = genLabelId("if.body" + ss.str());
-            ifElse = genLabelId("if.else" + ss.str());
-            ifEnd = genLabelId("if.end" + ss.str());
+            auto ifInit = genLabelId("if.init" + ss.str());
+            auto ifCond = genLabelId("if.cond" + ss.str());
+            auto ifBody = genLabelId("if.body" + ss.str());
+            auto ifElse = genLabelId("if.else" + ss.str());
+            auto ifEnd = genLabelId("if.end" + ss.str());
             // br if.init
             os << "\tbr label %" << ifInit << "\n";
             // if.init
@@ -284,11 +282,11 @@ class Compiler {
             auto re1 = scope;
             enterScope();
             ss << labelSuffix++;
-            forInit = genLabelId("for.init" + ss.str());
-            forCond = genLabelId("for.cond" + ss.str());
-            forPost = genLabelId("for.post" + ss.str());
-            forBody = genLabelId("for.body" + ss.str());
-            forEnd = genLabelId("for.end" + ss.str());
+            auto forInit = genLabelId("for.init" + ss.str());
+            auto forCond = genLabelId("for.cond" + ss.str());
+            auto forPost = genLabelId("for.post" + ss.str());
+            auto forBody = genLabelId("for.body" + ss.str());
+            auto forEnd = genLabelId("for.end" + ss.str());
             // br for.init
             os << "\tbr label %" << forInit << "\n";
             auto re2 = scope;
@@ -353,7 +351,15 @@ class Compiler {
                 os << "\tret void\n";
             }
         } else if (stmt->type() == TType::BranchStmtT) {
-            // TODO support BranchStmtAST
+            // TODO
+            cerr << "TODO support BranchStmtAST" << endl;
+            assert(false);
+        } else if (stmt->type() == TType::EmptyStmtT) {
+            // do nothing
+        } else if (stmt->type() == TType::IncDecStmtT) {
+            // TODO
+            cerr << "TODO support IncDecStmtAST" << endl;
+            assert(false);
         } else {
             cerr << "unknown stmt type" << endl;
             assert(false);
@@ -402,6 +408,9 @@ class Compiler {
     string compileExpr(ostream& os, pAST& _expr) {
         // expr: *ExpAST
         auto expr = reinterpret_cast<ExpAST*>(_expr.get());
+        if (debug) {
+            clog << ">> compileExpr " << *expr << endl;
+        }
         string localName;  // ret
         string varName;
         string funcName;

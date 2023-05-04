@@ -23,6 +23,8 @@ enum class TType {
     ReturnStmtT,
     BTypeT,
     ForStmtT,
+    BranchStmtT,
+    IncDecStmtT,
     ShortVarDeclT,
     // AssignStmtT,
     IfStmtT,
@@ -34,7 +36,10 @@ enum class TType {
     ParenExpT,
     CallExpT,
     // for future use
-    BranchStmtT
+    _0,
+    _1,
+    _2,
+    _3
 };
 
 // 所有 AST 的基类
@@ -55,7 +60,10 @@ using pvpAST = unique_ptr<vpAST>;
 using pvStr = unique_ptr<vector<string>>;
 
 class StmtAST : public BaseAST {};
-class ExpAST : public BaseAST {};
+class ExpAST : public BaseAST {
+   public:
+    virtual int eval() const = 0;
+};
 
 class VarSpecAST : public BaseAST {
    public:
@@ -223,6 +231,10 @@ class ParenExpAST : public ExpAST {
 
     ParenExpAST(BaseAST *ast) { p = pAST(ast); }
 
+    int eval() const override {
+        auto exp = reinterpret_cast<ExpAST *>(p.get());
+        return exp->eval();
+    }
     TType type() const override { return ty; }
     json toJson() const override {
         json j;
@@ -241,6 +253,7 @@ class NumberAST : public ExpAST {
 
     NumberAST(int n) { num = n; }
 
+    int eval() const override { return num; }
     TType type() const override { return ty; }
     json toJson() const override {
         json j;
@@ -254,18 +267,17 @@ class BTypeAST : public BaseAST {
    public:
     TType ty = TType::BTypeT;
     string elementType = "int";
-    unique_ptr<vector<int>> dims = nullptr;
+    // -1 for "[]" (pointer), never be nullptr
+    unique_ptr<vector<int>> dims;
 
     TType type() const override { return ty; }
     json toJson() const override {
         json j;
         j["type"] = "BType";
         j["elementType"] = elementType;
-        if (dims != nullptr) {
-            j["dims"] = json::array();
-            for (auto &dim : *dims) {
-                j["dims"].push_back(dim);
-            }
+        j["dims"] = json::array();
+        for (auto &dim : *dims) {
+            j["dims"].push_back(dim);
         }
         return j;
     }
@@ -283,6 +295,21 @@ class UnaryExpAST : public ExpAST {
         p = pAST(ast);
     }
 
+    int eval() const override {
+        auto exp = reinterpret_cast<ExpAST *>(p.get());
+        int val = exp->eval();
+        switch (op) {
+            case '+':
+                return val;
+            case '-':
+                return -val;
+            case '!':
+                return !val;
+            default:
+                cerr << "error: unknown unary operator" << endl;
+                assert(false);
+        }
+    }
     TType type() const override { return ty; }
     json toJson() const override {
         json j;
@@ -306,6 +333,11 @@ class CallExpAST : public ExpAST {
         argList = pvpAST(_argList);
     }
 
+    int eval() const override {
+        cerr << "error: call expression is not const" << endl;
+        assert(false);
+        return -1;
+    }
     TType type() const override { return ty; }
     json toJson() const override {
         json j;
@@ -398,6 +430,12 @@ class LValAST : public ExpAST {
         indexList->push_back(pAST(index));
     }
 
+    int eval() const override {
+        // TODO support const
+        cerr << "error: lval is not const" << endl;
+        assert(false);
+        return -1;
+    }
     TType type() const override { return ty; }
     json toJson() const override {
         json j;
@@ -431,11 +469,13 @@ class BinExpAST : public ExpAST {
         AND,  // &&
         OR,   // ||
     } op;
+    string opStr;
     pAST left;
     pAST right;
 
     BinExpAST(char _op, BaseAST *ast1, BaseAST *ast2) {
         // assign op according to + - * / ...
+        opStr = string(1, _op);
         if (_op == '+') {
             op = Op::ADD;
         } else if (_op == '-') {
@@ -455,6 +495,7 @@ class BinExpAST : public ExpAST {
     }
     BinExpAST(string *_op, BaseAST *ast1, BaseAST *ast2) {
         // assign op according to == != < <= > >= && ||
+        opStr = *_op;
         if (*_op == "==") {
             op = Op::EQ;
         } else if (*_op == "!=") {
@@ -479,11 +520,46 @@ class BinExpAST : public ExpAST {
         right = pAST(ast2);
     }
 
+    int eval() const override {
+        auto lExp = dynamic_cast<const ExpAST *>(left.get());
+        auto rExp = dynamic_cast<const ExpAST *>(right.get());
+        if(op==Op::ADD){
+            return lExp->eval() + rExp->eval();
+        }else if(op==Op::SUB){
+            return lExp->eval() - rExp->eval();
+        }else if(op==Op::MUL){
+            return lExp->eval() * rExp->eval();
+        }else if(op==Op::DIV){
+            return lExp->eval() / rExp->eval();
+        }else if(op==Op::MOD){
+            return lExp->eval() % rExp->eval();
+        }else if(op==Op::EQ){
+            return lExp->eval() == rExp->eval();
+        }else if(op==Op::NE){
+            return lExp->eval() != rExp->eval();
+        }else if(op==Op::LT){
+            return lExp->eval() < rExp->eval();
+        }else if(op==Op::LE){
+            return lExp->eval() <= rExp->eval();
+        }else if(op==Op::GT){
+            return lExp->eval() > rExp->eval();
+        }else if(op==Op::GE){
+            return lExp->eval() >= rExp->eval();
+        }else if(op==Op::AND){
+            return lExp->eval() && rExp->eval();
+        }else if(op==Op::OR){
+            return lExp->eval() || rExp->eval();
+        }else{
+            cerr << "error: unknown op" << endl;
+            assert(false);
+            return -1;
+        }
+    }
     TType type() const override { return ty; }
     json toJson() const override {
         json j;
         j["type"] = "BinaryExpAST";
-        j["op"] = op;
+        j["op"] = opStr;
         j["left"] = left->toJson();
         j["right"] = right->toJson();
         return j;
@@ -545,6 +621,22 @@ class BranchStmtAST : public StmtAST {
         if (t == Type::Goto) {
             j["ident"] = ident;
         }
+        return j;
+    }
+};
+
+class IncDecStmtAST : public StmtAST {
+   public:
+    TType ty = TType::IncDecStmtT;
+    pAST target;
+    bool isInc;
+
+    TType type() const override { return ty; }
+    json toJson() const override {
+        json j;
+        j["type"] = "IncDecStmtAST";
+        j["target"] = target->toJson();
+        j["isInc"] = isInc;
         return j;
     }
 };

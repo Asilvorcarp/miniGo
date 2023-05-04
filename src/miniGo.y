@@ -38,6 +38,7 @@ using namespace std;
   BaseAST *ast_val;
   vpAST *ast_list;
   vector<string> *str_list;
+  vector<int> *int_list;
 }
 
 // lexer 返回的所有 token 种类的声明
@@ -50,12 +51,13 @@ using namespace std;
 %token <char_val> '+' '-' '*' '/' '%' '!' '&' '|' '^' '<' '>' '='
 
 // 非终结符的类型定义
-%type <ast_val> FuncDef ReturnType Block Stmt ReturnStmt Exp ExpStmt IncDecStmt AssignStmt ShortVarDecl LVal Param BType TopLevelDecl PrimaryExp UnaryExp MulExp AddExp RelExp EqExp LAndExp LOrExp ConstExp VarDecl ConstDecl VarSpec ConstSpec ForStmt SimpleStmt Decl IfStmt InitVal ConstInitVal BranchStmt
-%type <int_val> Number
+%type <ast_val> FuncDef ReturnType Block Stmt ReturnStmt Exp ExpStmt IncDecStmt AssignStmt ShortVarDecl LVal Param BType TopLevelDecl PrimaryExp UnaryExp MulExp AddExp RelExp EqExp LAndExp LOrExp VarDecl ConstDecl VarSpec ConstSpec ForStmt SimpleStmt Decl IfStmt InitVal BranchStmt
+%type <int_val> Number ConstIndex ConstExp ConstInitVal
 %type <char_val> AddOp MulOp UnaryOp
 %type <str_val> RelOp EqOp PackClause
 %type <ast_list> TopLevelDeclList ParamList StmtList ArgList InitVals LVals
 %type <str_list> IDs
+%type <int_list> ConstIndexList ConstInitVals
 
 %%
 
@@ -164,9 +166,15 @@ ExpStmt : Exp {
     $$ = ast;
 };
 IncDecStmt : LVal INC {
-    // TODO
+    auto ast = new IncDecStmtAST();
+    ast->target = pAST($1);
+    ast->isInc = true;
+    $$ = ast;
 } | LVal DEC {
-    // TODO
+    auto ast = new IncDecStmtAST();
+    ast->target = pAST($1);
+    ast->isInc = false;
+    $$ = ast;
 };
 // TODO support multiple assign in one stmt
 // And maybe combine it with ShortVarDecl
@@ -316,7 +324,15 @@ InitVals : InitVal { // just Exps
     $$ = l;
 };
 ConstInitVal  : ConstExp ;
-ConstInitVals : ConstInitVal | ConstInitVals ',' ConstInitVal;
+ConstInitVals : ConstInitVal {
+    auto l = new vector<int>();
+    l->push_back($1);
+    $$ = l;
+} | ConstInitVals ',' ConstInitVal {
+    auto l = $1;
+    l->push_back($3);
+    $$ = l;
+};
 // TODO support multiple var spec
 VarDecl : VAR VarSpec {
     $$ = $2;
@@ -346,16 +362,22 @@ ConstSpec : IDs BType '=' ConstInitVals {
 };
 // TODO TypeDecl
 Decl : VarDecl | ConstDecl;
-ConstIndex : '[' ConstExp ']';
-ConstIndexs : ConstIndex | ConstIndexs ConstIndex;
-BType : INT {
+ConstIndex : '[' ConstExp ']'{
+    $$ = $2;
+} | '[' ']' {
+    $$ = -1;
+};
+ConstIndexList : {
+    $$ = new vector<int>();
+} | ConstIndexList ConstIndex {
+    auto l = $1;
+    l->push_back($2);
+    $$ = l;
+};
+BType : ConstIndexList INT {
     auto ast = new BTypeAST();
     // ast->type = "int"; // default
-    $$ = ast;
-}| INT ConstIndexs {
-    auto ast = new BTypeAST();
-    // ast->type = "int"; // default
-    // TODO
+    ast->dims = unique_ptr<vector<int>>($1);
     $$ = ast;
 };
 
@@ -427,8 +449,9 @@ LOrExp: LAndExp | LOrExp OR LAndExp {
     $$ = new BinExpAST($2, $1, $3);
 };
 ConstExp: Exp {
-    // TODO judge exp is const, by get value?
-    $$ = $1;
+    // error if not const
+    auto exp = reinterpret_cast<ExpAST*>($1);
+    $$ = exp->eval();
 };
 
 

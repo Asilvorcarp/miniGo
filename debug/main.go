@@ -20,7 +20,10 @@ func partition(arr []int, left int, right int) int {
 			j--
 		}
 		if i <= j {
-			arr[i], arr[j] = arr[j], arr[i]
+			// arr[i], arr[j] = arr[j], arr[i]
+			temp := arr[i]
+			arr[i] = arr[j]
+			arr[j] = temp
 			i++
 			j--
 		}
