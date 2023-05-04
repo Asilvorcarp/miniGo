@@ -5,32 +5,19 @@
 
 using namespace std;
 
-// TODO remove ugo!
-const static string Header = R"(
-declare i32 @ugo_builtin_println(i32)
-declare i32 @ugo_builtin_exit(i32)
-)";
-
-const string MainMain = R"(
-define i32 @main() {
-	call i32() @ugo_main_init()
-	call i32() @ugo_main_main()
-	ret i32 0
-}
-)";
-
 class Compiler {
    public:
     CompUnitAST* file;
     Scope* scope;
     // id for generated temp (%t0, %t1, ...) and labels, use with ++
-    int nextId; 
+    int nextId;
     // avoid conflict of vars in different scope but with the same name, use with ++
-    int varSuffix; 
+    int varSuffix;
     // suffix for each group of generated labels, use with ++
-    int labelSuffix; 
+    int labelSuffix;
 
-    Compiler() : scope(Scope::Universe()), nextId(0), varSuffix(0), labelSuffix(0) {}
+    Compiler()
+        : scope(Scope::Universe()), nextId(0), varSuffix(0), labelSuffix(0) {}
     ~Compiler() {}
 
     string Compile(CompUnitAST* _file) {
@@ -104,6 +91,7 @@ class Compiler {
         auto re = scope;
         enterScope();
 
+        // register global vars
         for (auto& g : file->Globals) {
             stringstream ss;
             ss << "@ugo_" << file->packageName << "_" << g->idents->at(0);
@@ -114,6 +102,13 @@ class Compiler {
         if (file->Globals.size() > 0) {
             os << endl;
         }
+        // register global funcs
+        for (auto& fn : file->Funcs) {
+            stringstream ss;
+            ss << "@ugo_" << file->packageName << "_" << fn->ident;
+            auto mangledName = ss.str();
+            scope->Insert(new Object(fn->ident, mangledName, fn.get()));
+        }
         for (auto& fn : file->Funcs) {
             compileFunc(os, file, fn.get());
         }
@@ -123,14 +118,14 @@ class Compiler {
     }
 
     void compileFunc(ostream& os, CompUnitAST* file, FuncDefAST* fn) {
-        auto re = scope;
-        enterScope();
-
-        stringstream ss;
-        ss << "@ugo_" << file->packageName << "_" << fn->ident;
-        string mangledName = ss.str();
-
-        scope->Insert(new Object(fn->ident, mangledName, fn));
+        auto paramMNameList = vector<string>();
+        for (auto& _param : *fn->paramList) {
+            auto param = reinterpret_cast<ParamAST*>(_param.get());
+            stringstream ss;
+            ss << "%local_" << param->ident << "." << varSuffix++;
+            string mangledName = ss.str();
+            paramMNameList.push_back(mangledName);
+        }
 
         // TODO add func decl option in .y and AST
         if (fn->body == nullptr) {
@@ -139,14 +134,58 @@ class Compiler {
             return;
         }
         os << endl;
-
         os << "define i32 @ugo_" << file->packageName << "_" << fn->ident
-           << "() {\n";
-        compileStmt(os, fn->body);
-        os << "\tret i32 0\n";
-        os << "}\n";
+           << "(";
+        // params list
+        for (int i = 0; i < paramMNameList.size(); i++) {
+            os << "i32 " << paramMNameList[i] << ".arg" << i;
+            if (i != paramMNameList.size() - 1) {
+                os << ", ";
+            }
+        }
+        os << ") {\n";
 
+        // params + body scope
+        bool hasRet = false;
+        auto re = scope;
+        enterScope();
+        {
+            // stringstream ss;
+            // ss << "@ugo_" << file->packageName << "_" << fn->ident;
+            // string mangledName = ss.str();
+            // scope->Insert(new Object(fn->ident, mangledName, fn));
+
+            // register params
+            for (int i = 0; i < fn->paramList->size(); i++) {
+                auto param =
+                    reinterpret_cast<ParamAST*>(fn->paramList->at(i).get());
+                stringstream ss;
+                auto mangledName = paramMNameList[i];
+                ss << mangledName << ".arg" << i;
+                string paramRegName = ss.str();
+                scope->Insert(new Object(param->ident, mangledName, fn));
+
+                os << "\t" << mangledName << " = alloca i32, align 4\n";
+                os << "\tstore i32 " << paramRegName << ", i32* " << mangledName
+                   << "\n";
+            }
+
+            // body // TODO test this
+            auto body = reinterpret_cast<BlockAST*>(fn->body.get());
+            for (auto& stmt : *body->stmts) {
+                if (stmt->type() == TType::ReturnStmtT) {
+                    hasRet = true;
+                }
+                compileStmt(os, stmt);
+            }
+            // ensure ret
+            if (!hasRet) {
+                os << "\tret i32 0\n";
+            }
+        }
         restoreScope(re);
+
+        os << "}\n";
     }
 
     //TODO test scope enter/leave
@@ -303,6 +342,17 @@ class Compiler {
         } else if (stmt->type() == TType::ExpStmtT) {
             auto stmt4 = reinterpret_cast<ExpStmtAST*>(stmt);
             compileExpr(os, stmt4->exp);
+        } else if (stmt->type() == TType::ReturnStmtT) {
+            auto stmt5 = reinterpret_cast<ReturnStmtAST*>(stmt);
+            if (stmt5->exp != nullptr) {
+                auto ret = compileExpr(os, stmt5->exp);
+                os << "\tret i32 " << ret << "\n";
+            } else {
+                // return 0:
+                // os << "\tret i32 0\n";
+                // return void:
+                os << "\tret void\n";
+            }
         } else {
             cerr << "unknown stmt type" << endl;
             assert(false);

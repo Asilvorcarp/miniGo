@@ -18,20 +18,52 @@ extern FILE *yyin;
 extern int yyparse(unique_ptr<BaseAST> &ast);
 extern int yydebug;
 
-int main(int argc, const char *argv[]) {
-    // 解析命令行参数. 测试脚本/评测平台要求你的编译器能接收如下参数:
-    // compiler input -o output
-    // compiler input
-
+// .go to .ll
+void build(string inFile, string outLL) {
+    // >> scan and parse
 #ifdef YYDEBUG
     yydebug = 1;
 #endif
+    yyin = fopen(inFile.c_str(), "r");
+    assert(yyin);
+
+    unique_ptr<BaseAST> ast;
+
+    cout << ">> parsing... " << endl;
+    auto ret = yyparse(ast);
+    cout << ">> done" << endl;
+
+    assert(!ret);
+
+    // print ast as json
+    cout << *ast << endl;
+
+    // >> compile to .ll
+    auto compiler = Compiler();
+    auto unit = reinterpret_cast<CompUnitAST *>(ast.get());
+    string ll = compiler.Compile(unit);
+
+    cout << ">> ll: " << endl;
+    cout << ll << endl;
+
+    // print ll to file output
+    FILE *fp = fopen(outLL.c_str(), "w");
+    fprintf(fp, "%s", ll.c_str());
+    fclose(fp);
+    
+    // after this,
+    // clang outLL runtime.ll -o a.out
+}
+
+int main(int argc, const char *argv[]) {
+    // compiler input -o output
+    // compiler input
 
     string input, output;
     if (argc == 4) {
         assert(argv[2] == string("-o"));
         input = argv[1];
-        output = argv[3];  // not used yet
+        output = argv[3];
     } else if (argc == 2) {
         input = argv[1];
         output = "a.out";
@@ -39,32 +71,7 @@ int main(int argc, const char *argv[]) {
         assert(0);
     }
 
-    // 打开输入文件, 并且指定 lexer 在解析的时候读取这个文件
-    yyin = fopen(input.c_str(), "r");
-    assert(yyin);
-
-    unique_ptr<BaseAST> ast;
-
-    cout<<">> parsing... "<<endl;
-    auto ret = yyparse(ast);
-    cout<<">> done"<<endl;
-
-    assert(!ret);
-
-    // print ast as json
-    cout << *ast << endl;
-
-    auto compiler = Compiler();
-    auto unit = reinterpret_cast<CompUnitAST*>(ast.get());
-    string ll = compiler.Compile(unit);
-    
-    cout << ">> ll: " << endl;
-    cout << ll << endl;
-    
-    // print ll to file output
-    FILE* fp = fopen(output.c_str(), "w");
-    fprintf(fp, "%s", ll.c_str());
-    fclose(fp);
+    build(input, output);
 
     return 0;
 }

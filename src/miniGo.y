@@ -50,11 +50,11 @@ using namespace std;
 %token <char_val> '+' '-' '*' '/' '%' '!' '&' '|' '^' '<' '>' '='
 
 // 非终结符的类型定义
-%type <ast_val> FuncDef FuncType Block Stmt ReturnStmt Exp ExpStmt IncDecStmt AssignStmt ShortVarDecl LVal FuncFParam BType TopLevelDecl PrimaryExp UnaryExp MulExp AddExp RelExp EqExp LAndExp LOrExp ConstExp VarDecl ConstDecl VarSpec ConstSpec ForStmt SimpleStmt Decl IfStmt InitVal ConstInitVal
+%type <ast_val> FuncDef ReturnType Block Stmt ReturnStmt Exp ExpStmt IncDecStmt AssignStmt ShortVarDecl LVal Param BType TopLevelDecl PrimaryExp UnaryExp MulExp AddExp RelExp EqExp LAndExp LOrExp ConstExp VarDecl ConstDecl VarSpec ConstSpec ForStmt SimpleStmt Decl IfStmt InitVal ConstInitVal
 %type <int_val> Number
 %type <char_val> AddOp MulOp UnaryOp
 %type <str_val> RelOp EqOp PackClause
-%type <ast_list> TopLevelDeclList FuncFParamList StmtList ArgList InitVals LVals
+%type <ast_list> TopLevelDeclList ParamList StmtList ArgList InitVals LVals
 %type <str_list> IDs
 
 %%
@@ -89,11 +89,11 @@ PackClause : PACKAGE IDENT {
     $$ = $2;
 };
 
-// FuncDef ::= FuncType IDENT '(' ')' Block;
+// FuncDef ::= ReturnType IDENT '(' ')' Block;
 // 我们这里可以直接写 '(' 和 ')', 因为之前在 lexer 里已经处理了单个字符的情况
 // 解析完成后, 把这些符号的结果收集起来, 然后拼成一个新的字符串, 作为结果返回
 // $$ 表示非终结符的返回值, 我们可以通过给这个符号赋值的方法来返回结果
-// 你可能会问, FuncType, IDENT 之类的结果已经是字符串指针了
+// 你可能会问, ReturnType, IDENT 之类的结果已经是字符串指针了
 // 为什么还要用 unique_ptr 接住它们, 然后再解引用, 把它们拼成另一个字符串指针呢
 // 因为所有的字符串指针都是我们 new 出来的, new 出来的内存一定要 delete
 // 否则会发生内存泄漏, 而 unique_ptr 这种智能指针可以自动帮我们 delete
@@ -101,36 +101,40 @@ PackClause : PACKAGE IDENT {
 // 这种写法会省下很多内存管理的负担
 // TODO: void func type, param list
 
-FuncFParam : IDENT BType {
-
+Param : IDENT BType {
+    auto ast = new ParamAST();
+    ast->ident = *unique_ptr<string>($1);
+    ast->t = pAST($2);
+    $$ = ast;
 };
 
-FuncFParamList : /* empty */ {
+ParamList : /* empty */ {
     $$ = new vpAST();
-} | FuncFParam {
+} | Param {
     auto l = new vpAST();
     l->push_back(pAST($1));
     $$ = l;
-} | FuncFParamList ',' FuncFParam {
+} | ParamList ',' Param {
     auto l = $1;
     l->push_back(pAST($3));
     $$ = l;
 };
 
-FuncDef : FUNC IDENT '(' FuncFParamList ')' FuncType Block {
+FuncDef : FUNC IDENT '(' ParamList ')' ReturnType Block {
     auto ast = new FuncDefAST();
     ast->ident = *unique_ptr<string>($2);
-    ast->func_type = pAST($6);
+    ast->paramList = pvpAST($4);
+    ast->retType = pAST($6);
     ast->body = pAST($7);
     $$ = ast;
 };
 
-FuncType : /* empty */ {
-    auto ast = new FuncTypeAST();
+ReturnType : /* empty */ {
+    auto ast = new ReturnTypeAST();
     // default void type
     $$ = ast;
 } | BType {
-    auto ast = new FuncTypeAST();
+    auto ast = new ReturnTypeAST();
     ast->t = "int"; // TODO
     $$ = ast;
 };

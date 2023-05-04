@@ -65,3 +65,20 @@ class Scope {
         return universe;
     }
 };
+
+// TODO remove ugo!
+const static string Header = R"(
+
+target triple = "x86_64-pc-linux-gnu"
+
+declare i32 @ugo_builtin_println(i32)
+declare i32 @ugo_builtin_exit(i32)
+)";
+
+const string MainMain = R"(
+define i32 @main() {
+	call i32() @ugo_main_init()
+	call i32() @ugo_main_main()
+	ret i32 0
+}
+)";

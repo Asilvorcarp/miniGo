@@ -33,7 +33,7 @@ enum class TType {
     ParenExpT,
     CallExpT,
     // for future use
-    _0,
+    ParamT,
     _1
 };
 
@@ -56,24 +56,6 @@ using pvStr = unique_ptr<vector<string>>;
 
 class StmtAST : public BaseAST {};
 class ExpAST : public BaseAST {};
-
-class FuncDefAST : public BaseAST {
-   public:
-    TType ty = TType::FuncDefT;
-    pAST func_type;
-    string ident;
-    pAST body;
-
-    TType type() const override { return ty; }
-    json toJson() const override {
-        json j;
-        j["type"] = "FuncDefAST";
-        j["func_type"] = func_type->toJson();
-        j["ident"] = ident;
-        j["body"] = body->toJson();
-        return j;
-    }
-};
 
 class VarSpecAST : public BaseAST {
    public:
@@ -101,6 +83,29 @@ class VarSpecAST : public BaseAST {
     }
 };
 
+class FuncDefAST : public BaseAST {
+   public:
+    TType ty = TType::FuncDefT;
+    string ident;
+    pvpAST paramList;
+    pAST retType;
+    pAST body;
+
+    TType type() const override { return ty; }
+    json toJson() const override {
+        json j;
+        j["type"] = "FuncDefAST";
+        j["ident"] = ident;
+        j["paramList"] = json::array();
+        for (auto &param : *paramList) {
+            j["paramList"].push_back(param->toJson());
+        }
+        j["retType"] = retType->toJson();
+        j["body"] = body->toJson();
+        return j;
+    }
+};
+
 class CompUnitAST : public BaseAST {
    public:
     TType ty = TType::CompUnitT;
@@ -112,11 +117,9 @@ class CompUnitAST : public BaseAST {
         cout << ">> FUCK" << endl;
         for (auto &topDef : *topDeclList) {
             if (topDef->type() == TType::VarSpecT) {
-                cout << ">> FUCK1" << endl;
                 Globals.push_back(
                     unique_ptr<VarSpecAST>((VarSpecAST *)topDef.get()));
             } else if (topDef->type() == TType::FuncDefT) {
-                cout << ">> FUCK2" << endl;
                 Funcs.push_back(
                     unique_ptr<FuncDefAST>((FuncDefAST *)topDef.get()));
             }
@@ -140,16 +143,31 @@ class CompUnitAST : public BaseAST {
     }
 };
 
-class FuncTypeAST : public BaseAST {
+class ParamAST : public BaseAST {
+   public:
+    TType ty = TType::ParamT;
+    string ident;
+    pAST t;  // BType
+
+    TType type() const override { return ty; }
+    json toJson() const override {
+        json j;
+        j["type"] = "ParamAST";
+        j["ident"] = ident;
+        j["t"] = t->toJson();
+        return j;
+    }
+};
+
+class ReturnTypeAST : public BaseAST {
    public:
     TType ty = TType::FuncTypeT;
     string t = "void";  // default void
 
     TType type() const override { return ty; }
-
     json toJson() const override {
         json j;
-        j["type"] = "FuncTypeAST";
+        j["type"] = "ReturnTypeAST";
         j["t"] = t;
         return j;
     }
