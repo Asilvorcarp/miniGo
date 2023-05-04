@@ -46,3 +46,5 @@ func main() {
 		putint(arr[i])
 	}
 }
+
+// cat sort.temp.in | go run ./sort.go ./runtime.go

@@ -1,29 +1,29 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-int ugo_builtin_getchar() {
+int runtime_getchar() {
     return getchar();
 }
 
-int ugo_builtin_getint() {
+int runtime_getint() {
     int x;
     scanf("%d", &x);
     return x;
 }
 
-int ugo_builtin_putchar(int x) {
+int runtime_putchar(int x) {
     return putchar(x);
 }
 
-int ugo_builtin_putint(int x) {
+int runtime_putint(int x) {
 	return printf("%d", x);
 }
 
-int ugo_builtin_println(int x) {
+int runtime_println(int x) {
     return printf("%d\n", x);
 }
 
-int ugo_builtin_exit(int x) {
+int runtime_exit(int x) {
 	exit(x);
 	return 0;
 }

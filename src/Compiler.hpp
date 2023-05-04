@@ -65,7 +65,7 @@ class Compiler {
     }
 
     void genInit(ostream& os, CompUnitAST* file) {
-        os << "define i32 @ugo_" << file->packageName << "_init() {\n";
+        os << "define i32 @" << file->packageName << "_init() {\n";
 
         // TODO support multiple globals in one line
         for (auto& g : file->Globals) {
@@ -94,7 +94,7 @@ class Compiler {
         // register global vars
         for (auto& g : file->Globals) {
             stringstream ss;
-            ss << "@ugo_" << file->packageName << "_" << g->idents->at(0);
+            ss << "@" << file->packageName << "_" << g->idents->at(0);
             string mangledName = ss.str();
             scope->Insert(new Object(g->idents->at(0), mangledName, g.get()));
             os << mangledName << " = global i32 0\n";
@@ -105,7 +105,7 @@ class Compiler {
         // register global funcs
         for (auto& fn : file->Funcs) {
             stringstream ss;
-            ss << "@ugo_" << file->packageName << "_" << fn->ident;
+            ss << "@" << file->packageName << "_" << fn->ident;
             auto mangledName = ss.str();
             scope->Insert(new Object(fn->ident, mangledName, fn.get()));
         }
@@ -129,12 +129,12 @@ class Compiler {
 
         // TODO add func decl option in .y and AST
         if (fn->body == nullptr) {
-            os << "declare i32 @ugo_" << file->packageName << "_" << fn->ident
+            os << "declare i32 @" << file->packageName << "_" << fn->ident
                << "()\n";
             return;
         }
         os << endl;
-        os << "define i32 @ugo_" << file->packageName << "_" << fn->ident
+        os << "define i32 @" << file->packageName << "_" << fn->ident
            << "(";
         // params list
         for (int i = 0; i < paramMNameList.size(); i++) {
@@ -151,7 +151,7 @@ class Compiler {
         enterScope();
         {
             // stringstream ss;
-            // ss << "@ugo_" << file->packageName << "_" << fn->ident;
+            // ss << "@" << file->packageName << "_" << fn->ident;
             // string mangledName = ss.str();
             // scope->Insert(new Object(fn->ident, mangledName, fn));
 

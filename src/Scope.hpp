@@ -60,8 +60,12 @@ class Scope {
 
     static Scope* Universe() {
         auto universe = new Scope(nullptr);
-        universe->Insert(new Object("println", "@ugo_builtin_println"));
-        universe->Insert(new Object("exit", "@ugo_builtin_exit"));
+        universe->Insert(new Object("getchar", "@runtime_getchar"));
+        universe->Insert(new Object("getint", "@runtime_getint"));
+        universe->Insert(new Object("putchar", "@runtime_putchar"));
+        universe->Insert(new Object("putint", "@runtime_putint"));
+        universe->Insert(new Object("println", "@runtime_println"));
+        universe->Insert(new Object("exit", "@runtime_exit"));
         return universe;
     }
 };
@@ -71,14 +75,18 @@ const static string Header = R"(
 
 target triple = "x86_64-pc-linux-gnu"
 
-declare i32 @ugo_builtin_println(i32)
-declare i32 @ugo_builtin_exit(i32)
+declare i32 @runtime_getchar()
+declare i32 @runtime_getint()
+declare i32 @runtime_putchar(i32)
+declare i32 @runtime_putint(i32)
+declare i32 @runtime_println(i32)
+declare i32 @runtime_exit(i32)
 )";
 
 const string MainMain = R"(
 define i32 @main() {
-	call i32() @ugo_main_init()
-	call i32() @ugo_main_main()
+	call i32() @main_init()
+	call i32() @main_main()
 	ret i32 0
 }
 )";
