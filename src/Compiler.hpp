@@ -23,9 +23,14 @@ class Compiler {
    public:
     CompUnitAST* file;
     Scope* scope;
-    int nextId;
+    // id for generated temp (%t0, %t1, ...) and labels, use with ++
+    int nextId; 
+    // avoid conflict of vars in different scope but with the same name, use with ++
+    int varSuffix; 
+    // suffix for each group of generated labels, use with ++
+    int labelSuffix; 
 
-    Compiler() : scope(Scope::Universe()), nextId(0) {}
+    Compiler() : scope(Scope::Universe()), nextId(0), varSuffix(0), labelSuffix(0) {}
     ~Compiler() {}
 
     string Compile(CompUnitAST* _file) {
@@ -154,7 +159,6 @@ class Compiler {
         stringstream ss;
         string ifInit, ifCond, ifBody, ifElse, ifEnd;
         string forInit, forCond, forBody, forPost, forEnd;
-        static int thePos = 0;
         if (stmt->type() == TType::VarSpecT) {
             // TODO now only support one spec
             auto stmt0 = reinterpret_cast<VarSpecAST*>(stmt);
@@ -163,7 +167,7 @@ class Compiler {
                 localName = compileExpr(os, (*stmt0->initVals)[0]);
             }
             firstId = (*stmt0->idents)[0];
-            ss << "%local_" << firstId << ".pos.0";
+            ss << "%local_" << firstId << "." << varSuffix++;
             mangledName = ss.str();
             scope->Insert(new Object(firstId, mangledName, stmt0));
             os << "\t" << mangledName << " = alloca i32, align 4\n";
@@ -175,12 +179,12 @@ class Compiler {
             auto stmt1 = reinterpret_cast<IfStmtAST*>(stmt);
             auto ifre1 = scope;
             enterScope();
-            ss << thePos++;
-            ifInit = genLabelId("if.init.line" + ss.str());
-            ifCond = genLabelId("if.cond.line" + ss.str());
-            ifBody = genLabelId("if.body.line" + ss.str());
-            ifElse = genLabelId("if.else.line" + ss.str());
-            ifEnd = genLabelId("if.end.line" + ss.str());
+            ss << labelSuffix++;
+            ifInit = genLabelId("if.init" + ss.str());
+            ifCond = genLabelId("if.cond" + ss.str());
+            ifBody = genLabelId("if.body" + ss.str());
+            ifElse = genLabelId("if.else" + ss.str());
+            ifEnd = genLabelId("if.end" + ss.str());
             // br if.init
             os << "\tbr label %" << ifInit << "\n";
             // if.init
@@ -241,12 +245,12 @@ class Compiler {
             auto stmt2 = reinterpret_cast<ForStmtAST*>(stmt);
             auto re1 = scope;
             enterScope();
-            ss << thePos++;
-            forInit = genLabelId("for.init.line" + ss.str());
-            forCond = genLabelId("for.cond.line" + ss.str());
-            forPost = genLabelId("for.post.line" + ss.str());
-            forBody = genLabelId("for.body.line" + ss.str());
-            forEnd = genLabelId("for.end.line" + ss.str());
+            ss << labelSuffix++;
+            forInit = genLabelId("for.init" + ss.str());
+            forCond = genLabelId("for.cond" + ss.str());
+            forPost = genLabelId("for.post" + ss.str());
+            forBody = genLabelId("for.body" + ss.str());
+            forEnd = genLabelId("for.end" + ss.str());
             // br for.init
             os << "\tbr label %" << forInit << "\n";
             auto re2 = scope;
@@ -321,7 +325,7 @@ class Compiler {
                 if (!scope->HasName(tar->ident)) {
                     stringstream ss;
                     // TODO !!! can we remove pos ??? !!!
-                    ss << "%local_" << tar->ident << ".pos.0";
+                    ss << "%local_" << tar->ident << "." << varSuffix++;
                     auto mangledName = ss.str();
                     scope->Insert(
                         new Object(tar->ident, mangledName, target.get()));
