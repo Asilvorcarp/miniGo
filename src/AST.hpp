@@ -114,7 +114,6 @@ class CompUnitAST : public BaseAST {
     vector<unique_ptr<FuncDefAST>> Funcs;
 
     void setDefs(vpAST *topDeclList) {
-        cout << ">> FUCK" << endl;
         for (auto &topDef : *topDeclList) {
             if (topDef->type() == TType::VarSpecT) {
                 Globals.push_back(

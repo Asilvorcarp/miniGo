@@ -1,11 +1,10 @@
+#include <AST.hpp>
+#include <Compiler.hpp>
 #include <cassert>
 #include <cstdio>
 #include <iostream>
 #include <memory>
 #include <string>
-
-#include <AST.hpp>
-#include <Compiler.hpp>
 
 using namespace std;
 
@@ -36,6 +35,7 @@ void build(string inFile, string outLL) {
     assert(!ret);
 
     // print ast as json
+    cout << ">> ast: " << endl;
     cout << *ast << endl;
 
     // >> compile to .ll
@@ -43,14 +43,11 @@ void build(string inFile, string outLL) {
     auto unit = reinterpret_cast<CompUnitAST *>(ast.get());
     string ll = compiler.Compile(unit);
 
-    cout << ">> ll: " << endl;
-    cout << ll << endl;
-
     // print ll to file output
     FILE *fp = fopen(outLL.c_str(), "w");
     fprintf(fp, "%s", ll.c_str());
     fclose(fp);
-    
+
     // after this,
     // clang outLL runtime.ll -o a.out
 }
@@ -66,7 +63,7 @@ int main(int argc, const char *argv[]) {
         output = argv[3];
     } else if (argc == 2) {
         input = argv[1];
-        output = "a.out";
+        output = "a.ll";
     } else {
         assert(0);
     }
