@@ -697,12 +697,8 @@ class Compiler {
             }
             string lenLocal = compileExpr(os, exp->len);
             auto localName = genId();
-            string elemType = "ptr";
-            if (reduceDim(varType) == "i32") {
-                elemType = "i32";
-            }
             os << "\t" << localName << " = "
-               << "alloca " << elemType << ", i32 " << lenLocal << ", align 4"
+               << "alloca " << varType << ", i32 " << lenLocal << ", align 4"
                << endl;
             return localName;
         } else if (expr->type() == TType::CallExpT) {
