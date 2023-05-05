@@ -425,8 +425,8 @@ class Compiler {
 
     void compileStmt_assign(ostream& os, const pAST& _stmt) {
         // stmt: *ShortVarDeclAST
-        // TODO, for now, any short var decl is int, not support array
         auto stmt = reinterpret_cast<ShortVarDeclAST*>(_stmt.get());
+        // TODO, for now, any short var decl is int, not support array
         auto& targets = *stmt->targets;
         auto& initVals = *stmt->initVals;
         vector<string> valueNameList(initVals.size());

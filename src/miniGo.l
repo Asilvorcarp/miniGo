@@ -29,6 +29,9 @@ using namespace std;
 WhiteSpace    [ \t\n\r]*
 LineComment   "//".*
 
+/* char 字面量 */
+CharLiteral   '(\\.|[^\\'])'
+
 /* 标识符 */
 Identifier    [a-zA-Z_][a-zA-Z0-9_]*
 
@@ -41,6 +44,8 @@ Hexadecimal   0[xX][0-9a-fA-F]+
 
 {WhiteSpace}    { /* 忽略, 不做任何操作 */ }
 {LineComment}   { /* 忽略, 不做任何操作 */ }
+
+{CharLiteral}   { yylval.char_val = yytext[1]; return CHAR_CONST; }
 
 "package"       { return PACKAGE; }
 "import"        { return IMPORT; }

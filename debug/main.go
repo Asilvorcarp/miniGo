@@ -1,47 +1,166 @@
 package main
 
-func quicksort(arr []int, left int, right int) {
-	if left < right {
-		pivotIndex := partition(arr, left, right)
-		quicksort(arr, left, pivotIndex-1)
-		quicksort(arr, pivotIndex+1, right)
+// import (
+// 	"fmt"
+// )
+
+// func getchar() int {
+// 	var n byte
+// 	fmt.Scanf("%c", &n)
+// 	return int(n)
+// }
+
+// func putchar(n int) {
+// 	fmt.Printf("%c", n)
+// }
+
+// fmt.Scanf("%d", &n)
+func getInt() int {
+	sign := 1
+	n := 0
+	c := getchar()
+	for c < '0' || c > '9' {
+		if c == '-' {
+			sign = -1
+		}
+		c = getchar()
 	}
+	for c >= '0' && c <= '9' {
+		n = n*10 + c - '0'
+		c = getchar()
+	}
+	n *= sign
+	return n
 }
 
-func partition(arr []int, left int, right int) int {
-	pivot := arr[left]
-	i := left + 1
-	j := right
-	for i <= j {
-		for i <= j && arr[i] < pivot {
-			i++
-		}
-		for i <= j && arr[j] > pivot {
-			j--
-		}
-		if i <= j {
-			// swap
-			arr[i], arr[j] = arr[j], arr[i]
-			i++
-			j--
-		}
-	}
-	// swap
-	arr[left], arr[j] = arr[j], arr[left]
-	return j
-}
+// func inArray(n int, arr []int) int {
+// 	for i := 0; i < len(arr); i++ {
+// 		if arr[i] == n {
+// 			return 1
+// 		}
+// 	}
+// 	return 0
+// }
 
-func main() {
-	arr := make([]int, 1024)
-	var n int
-	n = getint()
-	for i := 0; i < n; i++ {
-		arr[i] = getint()
-	}
-	quicksort(arr, 0, n-1)
-	for i := 0; i < n; i++ {
-		println(arr[i])
-	}
-}
+// // get string before any stop char
+// func getString(maxLen int, stopChars []int) []int {
+// 	s := make([]int, maxLen)
+// 	i := 0
+// 	c := getchar()
+// 	for inArray(c, stopChars) == 0 && i < maxLen {
+// 		s[i] = c
+// 		i++
+// 		c = getchar()
+// 	}
+// 	s[i] = 0
+// 	return s
+// }
 
-// cat sort.temp.in | go run ./sort.go ./runtime.go
+// // fmt.Printf("%d", n)
+// func putInt(n int) {
+// 	if n < 0 {
+// 		putchar('-')
+// 		n = -n
+// 	}
+// 	if n/10 != 0 {
+// 		putInt(n / 10)
+// 	}
+// 	putchar(n%10 + '0')
+// }
+
+// // put int with width
+// func putIntW(n int, width int) {
+// 	// print spaces
+// 	digits := 0
+// 	goDown := n
+// 	goUp := 1
+// 	for goDown != 0 {
+// 		digits++
+// 		goDown /= 10
+// 		goUp *= 10
+// 	}
+// 	spaces := 10 - digits
+// 	for i := 0; i < spaces; i++ {
+// 		putchar(' ')
+// 	}
+// 	// print sign
+// 	if n < 0 {
+// 		putchar('-')
+// 		n = -n
+// 	}
+// 	// print number
+// 	goDown = goUp / 10
+// 	for i := digits - 1; i >= 0; i-- {
+// 		d := n / goDown % 10
+// 		putchar(d + '0')
+// 		goDown /= 10
+// 	}
+// }
+
+// // fmt.Printf("%s", s)
+// func putString(s []int) {
+// 	i := 0
+// 	for s[i] != 0 {
+// 		putchar(s[i])
+// 		i++
+// 	}
+// }
+
+// // "Incompatible Dimensions" as int array
+// var err = []int{73, 110, 99, 111, 109, 112, 97, 116, 105, 98, 108, 101, 32, 68, 105, 109, 101, 110, 115, 105, 111, 110, 115, 0}
+
+// func main() {
+// 	aRows, aCols := getInt(), getInt()
+// 	matrixA := parseMatrix(aRows, aCols)
+
+// 	bRows, bCols := getInt(), getInt()
+// 	matrixB := parseMatrix(bRows, bCols)
+
+// 	// error if dim not match
+// 	if aCols != bRows {
+// 		putString(err)
+// 		putchar('\n')
+// 		return
+// 	}
+// 	result := calculateProduct(matrixA, matrixB)
+
+// 	outputMatrix(result)
+// }
+
+// func parseMatrix(rows int, cols int) [][]int {
+// 	matrix := make([][]int, rows)
+// 	for i := 0; i < rows; i++ {
+// 		matrix[i] = make([]int, cols)
+// 		for j := 0; j < cols; j++ {
+// 			matrix[i][j] = getInt()
+// 		}
+// 	}
+// 	return matrix
+// }
+
+// func calculateProduct(matrixA [][]int, matrixB [][]int) [][]int {
+// 	m := len(matrixA)
+// 	n := len(matrixB[0])
+// 	result := make([][]int, m)
+// 	for i := 0; i < m; i++ {
+// 		row := make([]int, n)
+// 		for j := 0; j < n; j++ {
+// 			sum := 0
+// 			for k := 0; k < len(matrixA[i]); k++ {
+// 				sum += matrixA[i][k] * matrixB[k][j]
+// 			}
+// 			row[j] = sum
+// 		}
+// 		result[i] = row
+// 	}
+// 	return result
+// }
+
+// func outputMatrix(matrix [][]int) {
+// 	for _, row := range matrix {
+// 		for _, value := range row {
+// 			putIntW(value, 10)
+// 		}
+// 		putchar('\n')
+// 	}
+// }

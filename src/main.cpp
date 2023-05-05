@@ -52,10 +52,10 @@ void build(string inFile, string outLL) {
     auto unit = reinterpret_cast<CompUnitAST *>(ast.get());
     string ll = compiler.Compile(unit);
 
-    // output ast with dynamic information to json file
-    FILE *astDFp = fopen("ast.o.json", "w");
-    fprintf(astDFp, "%s", ast->toJson().dump(4).c_str());
-    fclose(astDFp);
+    // // output ast with dynamic information to json file
+    // FILE *astDFp = fopen("ast.o.json", "w");
+    // fprintf(astDFp, "%s", ast->toJson().dump(4).c_str());
+    // fclose(astDFp);
 
     // print ll to file output
     FILE *fp = fopen(outLL.c_str(), "w");

@@ -253,6 +253,21 @@ The compiler would throw an exception if the expression is not const.
 
 Todo: const variable is not supported yet.
 
+### Equivalent AST
+
+Some candy grammars are implemented by converting to an equivalent AST, including:
+
+```
+a += b 
+-> a = a + b
+
+a++
+-> a = a + 1
+
+a := b // TODO
+-> var a = b
+```
+
 ### Some features
 
 #### Multi-assignment in Golang
