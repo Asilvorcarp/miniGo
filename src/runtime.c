@@ -5,14 +5,14 @@ int runtime_getchar() {
     return getchar();
 }
 
+int runtime_putchar(int x) {
+    return putchar(x);
+}
+
 int runtime_getint() {
     int x;
     scanf("%d", &x);
     return x;
-}
-
-int runtime_putchar(int x) {
-    return putchar(x);
 }
 
 int runtime_putint(int x) {
