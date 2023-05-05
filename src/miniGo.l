@@ -55,6 +55,7 @@ Hexadecimal   0[xX][0-9a-fA-F]+
 "defer"         { return DEFER; }
 "goto"          { return GOTO; }
 "const"         { return CONST; }
+"make"          { return MAKE; }
 ":="            { return DEFINE; }
 "++"            { return INC; }
 "--"            { return DEC; }

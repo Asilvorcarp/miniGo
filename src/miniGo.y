@@ -45,7 +45,7 @@ using namespace std;
 // 注意 IDENT 和 INT_CONST 会返回 token 的值, 分别对应 str_val 和 int_val
 %token INT RETURN PACKAGE IMPORT IF ELSE FOR DEFINE
     BREAK CONTINUE DEFER GOTO VAR FUNC CONST
-    INC DEC
+    INC DEC MAKE
 %token <str_val> IDENT LE GE EQ NE AND OR
 %token <int_val> INT_CONST
 %token <char_val> '+' '-' '*' '/' '%' '!' '&' '|' '^' '<' '>' '='
@@ -407,6 +407,8 @@ UnaryExp : PrimaryExp | IDENT '(' ArgList ')' {
     $$ = new CallExpAST($1, $3);
 } | UnaryOp UnaryExp {
     $$ = new UnaryExpAST($1, $2);
+} | MAKE '(' BType ',' Exp ')' {
+    $$ = new MakeExpAST($1, $2);
 };
 UnaryOp: '+' | '-' | '!';
 ArgList : /* empty */ {
