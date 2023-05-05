@@ -2,7 +2,7 @@
 
 The compiler for a subset of Go, implemented in C++.
 
-## grammar
+## Grammar
 
 // TODO
 
@@ -22,11 +22,43 @@ keywords:
 "goto"
 ```
 
-## build
+## Usage
+
+Suppose `miniGo.out` is the compiler built,
+`main.go` is the Golang src and `main.ll` is the LLVM IR output.
 
 ```bash
-cmake -S "repo目录" -B "build目录" -DLIB_DIR="libkoopa目录" -DINC_DIR="libkoopa头文件目录"
-cmake --build "build目录" -j `nproc`
+miniGo.out main.go main.ll
+```
+
+This will also generate the AST json file `ast.o.json` for debugging.
+If the output filename is not specified, the default one would be `a.ll`.
+
+## Build and Test
+
+To build the compiler `build/miniGo.out`:
+```bash
+make
+# Or: make miniGo 
+```
+
+To generate ll for `debug/main.go`:
+```bash
+make ll
+```
+
+To generate executable for `debug/main.go`:
+```bash
+make main
+```
+
+To generate and test the executable with input `debug/test.temp.in`:
+```bash
+make in
+```
+To clean up:
+```bash
+make clean
 ```
 
 ## EBNF
@@ -110,18 +142,17 @@ ConstExp      ::= Exp;
 
 Json Library:
 https://github.com/nlohmann/json
+Used to output AST in json format for debugging.
 
 ## Doc
 
-### dynamic array
+### Dynamic array
 
 (LLVM refers to [LLVM IR](https://llvm.org/docs/LangRef.html) below)
 
 Dynamic array is implemented with `alloca` in LLVM.
 The template of alloca: `pT1 = alloca T1, i32 numOfElements, align 4`.
-Any array of any dimension in the generated LLVM IR is just a `ptr`.
-(if T1 is i32, pT1 is ptr; if T1 is ptr, pT1 is still ptr)
-Only the compiler knows the dimension of the array, 
+The compiler knows the dimension of the array
 through methods like `Compiler::inferType(pAST exp)` and `BaseAST::info()`.
 
 This is written as `make(Type t, int size)` function in Golang.
@@ -175,12 +206,12 @@ call i32 @runtime_putint(i32 %sp11_val)
 
 For more details, see `debug/array.ll`.
 
-### runtime functions
+### Runtime functions
 
 The functions like `println` and `getchar` are implemented in `runtime.c`.
 They act like the standard library or the runtime of Golang, and are combined with the generated LLVM IR.
 
-### type inference
+### Type inference
 
 Type inference is needed because of statements like `i := arr[1]`.
 Some simple type inference is done by `Compiler::inferType(pAST exp)` and `BaseAST::info()`. 
@@ -194,7 +225,7 @@ This includes the type of a variable in a declaration,
 the type of a function parameter in a function definition,
 the type of the expression in a return statement, etc.
 
-### type checking
+### Type checking
 
 Some simple type checking is done inside of some methods of the compiler, including:
 
@@ -214,20 +245,20 @@ when `compileStmt` compiles a statement of type `ReturnStmtAST`,
 it would check if the type of the expression matches the return type of the function.
 // Techniques like finding the func containing the return statement are needed.
 
-### const expression
+### Const expression
 
 Const expression is evaluated at compile time with `int ExpAST::eval()`.
 The compiler would throw an exception if the expression is not const.
 
 Todo: const variable is not supported yet.
 
-### some features
+### Some features
 
-#### multi-assignment in Golang
+#### Multi-assignment in Golang
 
 Multi-assignment is supported, like `a, b = c, d`.
 
 Moreover, because temp variables are generated for each right hand side expression,
-we can do cool stuff like *swapping by `a, b = b, a`*.
+we can do cool stuff like **swapping by `a, b = b, a`**.
 
 ### Todo: `defer` in Golang
