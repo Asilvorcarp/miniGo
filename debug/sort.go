@@ -20,23 +20,19 @@ func partition(arr []int, left int, right int) int {
 			j--
 		}
 		if i <= j {
-			// arr[i], arr[j] = arr[j], arr[i]
-			temp := arr[i]
-			arr[i] = arr[j]
-			arr[j] = temp
+			// swap
+			arr[i], arr[j] = arr[j], arr[i]
 			i++
 			j--
 		}
 	}
 	// swap
-	temp := arr[left]
-	arr[left] = arr[j]
-	arr[j] = temp
+	arr[left], arr[j] = arr[j], arr[left]
 	return j
 }
 
 func main() {
-	var arr [10005]int
+	arr := make([]int, 1024)
 	var n int
 	n = getint()
 	for i := 0; i < n; i++ {
@@ -44,7 +40,7 @@ func main() {
 	}
 	quicksort(arr, 0, n-1)
 	for i := 0; i < n; i++ {
-		putint(arr[i])
+		println(arr[i])
 	}
 }
 
