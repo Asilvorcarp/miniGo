@@ -197,17 +197,22 @@ the type of the expression in a return statement, etc.
 ### type checking
 
 Some simple type checking is done inside of some methods of the compiler, including:
-when `compileExpr` compiles a expression of type `CallExpAST` (function call),
+
+When indexing an array, the index expression should be of type `int`.
+If not, the compiler would throw an exception, like
+`compileExpr: index expression is not int`.
+
+When `compileExpr` compiles a expression of type `CallExpAST` (function call),
 it would check if the number of arguments matches the number of parameters,
 and if the type of each argument matches the type of the corresponding parameter.
-
-Todo:
-If some type checking fails, the compiler would throw an exception, like
-`cerr << "compileExpr: type not match for " << argType << " and " << paramType;`.
+If not, the compiler would throw an exception, like
+`compileExpr: type mismatch in function call - FuncName`
+` - arg "a" has type "int", but expected "[]int"`.
 
 Todo:
 when `compileStmt` compiles a statement of type `ReturnStmtAST`,
 it would check if the type of the expression matches the return type of the function.
+// Techniques like finding the func containing the return statement are needed.
 
 ### const expression
 

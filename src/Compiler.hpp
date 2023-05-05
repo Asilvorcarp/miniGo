@@ -482,7 +482,13 @@ class Compiler {
                 for (int j = 0; j < tar->indexList->size(); ++j) {
                     auto& idxExp = tar->indexList->at(j);
                     auto idxName = compileExpr(os, idxExp);
-                    // TODO assert idxExp is int, like type checking in make
+                    // assert idxExp is int, type checking
+                    if (inferType(idxExp) != "i32") {
+                        cerr
+                            << "compileStmt_assign: index expression is not int"
+                            << endl;
+                        assert(false);
+                    }
                     string ptrValName = genId();
                     os << "\t" << ptrValName << " = load " << curType << ", "
                        << curType << "* " << ptrName << ", align 4" << endl;
@@ -492,7 +498,6 @@ class Compiler {
                        << redCurType << ", " << curType << " " << ptrValName
                        << ", i32 " << idxName << "\n";
                     ptrName = nextPtrName;
-                    curType = reduceDim(curType);
                     curType = redCurType;
                 }
                 // TODO assert valueType == curType, type checking
@@ -533,7 +538,12 @@ class Compiler {
                 for (int j = 0; j < exp->indexList->size(); ++j) {
                     auto& idxExp = exp->indexList->at(j);
                     auto idxName = compileExpr(os, idxExp);
-                    // TODO assert idxExp is int, like type checking in make
+                    // assert idxExp is int, type checking
+                    if (inferType(idxExp) != "i32") {
+                        cerr << "compileExpr: index expression is not int"
+                             << endl;
+                        assert(false);
+                    }
                     string ptrValName = genId();
                     os << "\t" << ptrValName << " = load " << curType << ", "
                        << curType << "* " << ptrName << ", align 4" << endl;
@@ -713,9 +723,12 @@ class Compiler {
             string funcType = funcDefAST->info();
             // args
             vector<string> argNames;
+            vector<string> argTypes;
             for (int i = 0; i < argNum; i++) {
                 auto argName = compileExpr(os, exp->argList->at(i));
                 argNames.push_back(argName);
+                auto argType = inferType(exp->argList->at(i));
+                argTypes.push_back(argType);
             }
             // no localName if return void
             auto returnType = funcDefAST->getRetType();
@@ -729,7 +742,16 @@ class Compiler {
             os << "\t" << sub.str() << "call " << funcType << " " << funcName
                << "(";
             for (int i = 0; i < argNum; i++) {
-                // TODO check type, now get type from params of func def
+                // type check for arg and param
+                if (argTypes[i] != paramTypes->at(i)) {
+                    cerr << "compileExpr: type mismatch in function call - "
+                         << funcName << endl;
+                    // show the arg type and param type
+                    cerr << " - arg \"" << argNames[i] << "\" has type \""
+                         << argTypes[i] << "\", but expected \""
+                         << paramTypes->at(i) << "\"." << endl;
+                    assert(false);
+                }
                 os << paramTypes->at(i) << " " << argNames[i];
                 if (i != argNum - 1) os << ", ";
             }
