@@ -48,7 +48,8 @@ in: main
 
 clean:
 	@echo "--- Clean ---"	
-	-rm -f */*.yy.*
-	-rm -f */*.tab.*
-	-rm -f */*.o.ll
-	-rm -f */*.out
+	-rm -f **/*.yy.*
+	-rm -f **/*.tab.*
+	-rm -f **/*.o.*
+	-rm -f **/*.out
+	-rm -f ast.o.json
