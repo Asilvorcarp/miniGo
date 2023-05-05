@@ -28,11 +28,19 @@ debugLL:
 	@echo "--- Build Main LL ---"
 	./miniGo.out ../debug/main.go -o ../debug/main.o.ll
 
-test: ll
+main: ll
 	@echo "--- Build Main ---"
 	clang runtime.o.ll ../debug/main.o.ll -o ../debug/main.out
+
+test: main
 	@echo "--- Start Main ---"	
 	@../debug/main.out
+
+in: main
+	@echo "--- Start Main with Input ---"	
+	@cat ../debug/test.temp.in
+	@echo "--- Output ---"	
+	@cat ../debug/test.temp.in | ../debug/main.out
 
 clean:
 	@echo "--- Clean ---"	

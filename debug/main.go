@@ -44,7 +44,7 @@ func main() {
 	}
 	quicksort(arr, 0, n-1)
 	for i := 0; i < n; i++ {
-		putint(arr[i])
+		println(arr[i])
 	}
 }
 
