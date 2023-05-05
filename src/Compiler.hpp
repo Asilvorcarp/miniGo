@@ -478,19 +478,24 @@ class Compiler {
             } else {
                 // get %arrayidx
                 string ptrName = varMName;
+                string curType = varType;
                 for (int j = 0; j < tar->indexList->size(); ++j) {
                     auto& idxExp = tar->indexList->at(j);
                     auto idxName = compileExpr(os, idxExp);
-                    // TODO assert idxExp is int, type checking
+                    // TODO assert idxExp is int, like type checking in make
                     string ptrValName = genId();
-                    os << "\t" << ptrValName << " = load ptr, ptr " << ptrName
-                       << ", align 4" << endl;
+                    os << "\t" << ptrValName << " = load " << curType << ", "
+                       << curType << "* " << ptrName << ", align 4" << endl;
                     string nextPtrName = genId();
-                    os << "\t" << nextPtrName
-                       << " = getelementptr inbounds ptr, ptr " << ptrValName
+                    string redCurType = reduceDim(curType);
+                    os << "\t" << nextPtrName << " = getelementptr inbounds "
+                       << redCurType << ", " << curType << " " << ptrValName
                        << ", i32 " << idxName << "\n";
                     ptrName = nextPtrName;
+                    curType = reduceDim(curType);
+                    curType = redCurType;
                 }
+                // TODO assert valueType == curType, type checking
                 os << "\tstore " << valueTypeList[i] << " " << valueNameList[i]
                    << ", " << valueTypeList[i] << "* " << ptrName << "\n";
             }
@@ -524,26 +529,25 @@ class Compiler {
             } else {
                 // get %arrayidx
                 auto ptrName = varMName;
+                auto curType = varType;
                 for (int j = 0; j < exp->indexList->size(); ++j) {
                     auto& idxExp = exp->indexList->at(j);
                     auto idxName = compileExpr(os, idxExp);
                     // TODO assert idxExp is int, like type checking in make
                     string ptrValName = genId();
-                    os << "\t" << ptrValName << " = load ptr, ptr " << ptrName
-                       << ", align 4" << endl;
+                    os << "\t" << ptrValName << " = load " << curType << ", "
+                       << curType << "* " << ptrName << ", align 4" << endl;
                     string nextPtrName = genId();
-                    os << "\t" << nextPtrName
-                       << " = getelementptr inbounds ptr, ptr " << ptrValName
+                    string redCurType = reduceDim(curType);
+                    os << "\t" << nextPtrName << " = getelementptr inbounds "
+                       << redCurType << ", " << curType << " " << ptrValName
                        << ", i32 " << idxName << "\n";
                     ptrName = nextPtrName;
+                    curType = redCurType;
                 }
                 localName = genId();
-                string finalType = "ptr";
-                if (reduceDim(varType, exp->indexList->size()) == "i32") {
-                    finalType = "i32";
-                }
-                os << "\t" << localName << " = load " << finalType << ", ptr "
-                   << ptrName << ", align 4\n";
+                os << "\t" << localName << " = load " << curType << ", "
+                   << curType << "* " << ptrName << ", align 4\n";
             }
             return localName;
         } else if (expr->type() == TType::NumberT) {
