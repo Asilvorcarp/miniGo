@@ -748,6 +748,14 @@ class MakeExpAST : public ExpAST {
         len = pAST(exp);
     }
 
+    int eval() const override {
+        cerr<<"eval: make exp cannot be const"<<endl;
+        assert(false);
+        return -1;
+    }
+    string info() const override {
+        return t->info();
+    }
     TType type() const override { return ty; }
     json toJson() const override {
         json j;

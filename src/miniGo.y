@@ -408,7 +408,7 @@ UnaryExp : PrimaryExp | IDENT '(' ArgList ')' {
 } | UnaryOp UnaryExp {
     $$ = new UnaryExpAST($1, $2);
 } | MAKE '(' BType ',' Exp ')' {
-    $$ = new MakeExpAST($1, $2);
+    $$ = new MakeExpAST($3, $5);
 };
 UnaryOp: '+' | '-' | '!';
 ArgList : /* empty */ {

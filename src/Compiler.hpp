@@ -477,22 +477,19 @@ class Compiler {
                    << ", " << valueTypeList[i] << "* " << varMName << "\n";
             } else {
                 // get %arrayidx
-                auto ptrName = genId();
-                stringstream sub;
-                sub<< ", i32 0";
+                string ptrName = varMName;
                 for (int j = 0; j < tar->indexList->size(); ++j) {
                     auto& idxExp = tar->indexList->at(j);
                     auto idxName = compileExpr(os, idxExp);
-                    sub << ", i32 " << idxName;
-                }
-                os << "\t" << ptrName << " = getelementptr inbounds " << varType << ", "
-                   << varType << "* " << varMName << sub.str() << "\n";
-                auto finalType = reduceDim(varType, tar->indexList->size());
-                // assert finalType == valueTypeList[i]
-                if (finalType != valueTypeList[i]) {
-                    cerr << "compileStmt_assign: finalType != valueTypeList[i]"
-                         << endl;
-                    assert(false);
+                    // TODO assert idxExp is int, type checking
+                    string ptrValName = genId();
+                    os << "\t" << ptrValName << " = load ptr, ptr " << ptrName
+                       << ", align 4" << endl;
+                    string nextPtrName = genId();
+                    os << "\t" << nextPtrName
+                       << " = getelementptr inbounds ptr, ptr " << ptrValName
+                       << ", i32 " << idxName << "\n";
+                    ptrName = nextPtrName;
                 }
                 os << "\tstore " << valueTypeList[i] << " " << valueNameList[i]
                    << ", " << valueTypeList[i] << "* " << ptrName << "\n";
@@ -508,64 +505,71 @@ class Compiler {
         }
         string localName;  // ret
         if (expr->type() == TType::LValT) {
-            auto exp0 = reinterpret_cast<LValAST*>(expr);
-            auto obj = scope->Lookup(exp0->ident).second;
+            auto exp = reinterpret_cast<LValAST*>(expr);
+            auto obj = scope->Lookup(exp->ident).second;
             if (obj == nullptr) {
-                cerr << "var " << exp0->ident << " undefined" << endl;
+                cerr << "var " << exp->ident << " undefined" << endl;
                 assert(false);
             }
             auto varMName = obj->MangledName;
             auto varType = obj->Node->info();
-            // to support index (exp0->indexList)
-            if (exp0->indexList == nullptr) {
+            // to support index (exp->indexList)
+            if (exp->indexList == nullptr) {
                 cerr << "compileExpr: indexList is null" << endl;
                 assert(false);
-            } else if (exp0->indexList->empty()) {
+            } else if (exp->indexList->empty()) {
                 localName = genId();
                 os << "\t" << localName << " = load " << varType << ", "
                    << varType << "* " << varMName << ", align 4\n";
             } else {
                 // get %arrayidx
-                auto ptrName = genId();
-                stringstream sub;
-                sub << ", i32 0";
-                for (int i = 0; i < exp0->indexList->size(); ++i) {
-                    auto& idxExp = exp0->indexList->at(i);
+                auto ptrName = varMName;
+                for (int j = 0; j < exp->indexList->size(); ++j) {
+                    auto& idxExp = exp->indexList->at(j);
                     auto idxName = compileExpr(os, idxExp);
-                    sub << ", i32 " << idxName;
+                    // TODO assert idxExp is int, like type checking in make
+                    string ptrValName = genId();
+                    os << "\t" << ptrValName << " = load ptr, ptr " << ptrName
+                       << ", align 4" << endl;
+                    string nextPtrName = genId();
+                    os << "\t" << nextPtrName
+                       << " = getelementptr inbounds ptr, ptr " << ptrValName
+                       << ", i32 " << idxName << "\n";
+                    ptrName = nextPtrName;
                 }
                 localName = genId();
-                os << "\t" << ptrName << " = getelementptr inbounds " << varType << ", "
-                   << varType << "* " << varMName << sub.str() << "\n";
-                auto finalType = reduceDim(varType, exp0->indexList->size());
-                os << "\t" << localName << " = load " << finalType << ", "
-                   << finalType << "* " << ptrName << ", align 4\n";
+                string finalType = "ptr";
+                if (reduceDim(varType, exp->indexList->size()) == "i32") {
+                    finalType = "i32";
+                }
+                os << "\t" << localName << " = load " << finalType << ", ptr "
+                   << ptrName << ", align 4\n";
             }
             return localName;
         } else if (expr->type() == TType::NumberT) {
-            auto exp1 = reinterpret_cast<NumberAST*>(expr);
+            auto exp = reinterpret_cast<NumberAST*>(expr);
             localName = genId();
             os << "\t" << localName << " = "
                << "add"
                << " i32 "
                << "0"
-               << ", " << exp1->num << endl;
+               << ", " << exp->num << endl;
             return localName;
         } else if (expr->type() == TType::BinExpT) {
-            auto exp2 = reinterpret_cast<BinExpAST*>(expr);
+            auto exp = reinterpret_cast<BinExpAST*>(expr);
             localName = genId();
             if (debug) {
                 clog << ">> doing left" << endl;
             }
-            auto left = compileExpr(os, exp2->left);
+            auto left = compileExpr(os, exp->left);
             if (debug) {
                 clog << ">> doing right" << endl;
             }
-            auto right = compileExpr(os, exp2->right);
+            auto right = compileExpr(os, exp->right);
             if (debug) {
                 clog << ">> done right" << endl;
             }
-            switch (exp2->op) {
+            switch (exp->op) {
                 case BinExpAST::Op::ADD:
                     os << "\t" << localName << " = "
                        << "add"
@@ -654,10 +658,10 @@ class Compiler {
                 clog << ">> done bin self" << endl;
             }
         } else if (expr->type() == TType::UnaryExpT) {
-            auto exp3 = reinterpret_cast<UnaryExpAST*>(expr);
-            if (exp3->op == '-') {
+            auto exp = reinterpret_cast<UnaryExpAST*>(expr);
+            if (exp->op == '-') {
                 localName = genId();
-                auto child = compileExpr(os, exp3->p);
+                auto child = compileExpr(os, exp->p);
                 os << "\t" << localName << " = "
                    << "sub"
                    << " i32 "
@@ -665,30 +669,48 @@ class Compiler {
                    << ", " << child << endl;
                 return localName;
             }
-            return compileExpr(os, exp3->p);
+            return compileExpr(os, exp->p);
         } else if (expr->type() == TType::ParenExpT) {
-            auto exp4 = reinterpret_cast<ParenExpAST*>(expr);
-            return compileExpr(os, exp4->p);
+            auto exp = reinterpret_cast<ParenExpAST*>(expr);
+            return compileExpr(os, exp->p);
+        } else if (expr->type() == TType::MakeExpT) {
+            auto exp = reinterpret_cast<MakeExpAST*>(expr);
+            auto varType = exp->info();
+            // assert len is int, maybe error while eval-ing
+            if (inferType(exp->len) != "i32") {
+                cerr << "compileExpr: make len must be int" << endl;
+                assert(false);
+            }
+            string lenLocal = compileExpr(os, exp->len);
+            auto localName = genId();
+            string elemType = "ptr";
+            if (reduceDim(varType) == "i32") {
+                elemType = "i32";
+            }
+            os << "\t" << localName << " = "
+               << "alloca " << elemType << ", i32 " << lenLocal << ", align 4"
+               << endl;
+            return localName;
         } else if (expr->type() == TType::CallExpT) {
-            auto exp5 = reinterpret_cast<CallExpAST*>(expr);
-            auto obj = scope->Lookup(exp5->funcName).second;
+            auto exp = reinterpret_cast<CallExpAST*>(expr);
+            auto obj = scope->Lookup(exp->funcName).second;
             string funcName;
             if (obj != nullptr) {
                 funcName = obj->MangledName;
             } else {
-                cerr << "compileExpr: function " << exp5->funcName
+                cerr << "compileExpr: function " << exp->funcName
                      << " undefined" << endl;
                 assert(false);
             }
             auto funcDefAST = dynamic_cast<FuncDefAST*>(obj->Node);
-            int argNum = exp5->argList->size();
+            int argNum = exp->argList->size();
             // get return type and param types
             auto paramTypes = funcDefAST->getParamTypes();
             string funcType = funcDefAST->info();
             // args
             vector<string> argNames;
             for (int i = 0; i < argNum; i++) {
-                auto argName = compileExpr(os, exp5->argList->at(i));
+                auto argName = compileExpr(os, exp->argList->at(i));
                 argNames.push_back(argName);
             }
             // no localName if return void
@@ -798,6 +820,8 @@ class Compiler {
                 assert(false);
             }
             return reduceDim(baseType, exp->indexList->size());
+        } else if (expr->type() == TType::MakeExpT) {
+            return expr->info();
         } else {
             cerr << "inferType: unknown type of ExpAST" << endl;
             assert(false);
