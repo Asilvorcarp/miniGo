@@ -178,7 +178,7 @@ For more details, see `debug/array.ll`.
 ### runtime functions
 
 The functions like `println` and `getchar` are implemented in `runtime.c`.
-They act like the standard library or the runtime of Golang.
+They act like the standard library or the runtime of Golang, and are combined with the generated LLVM IR.
 
 ### type inference
 
@@ -223,8 +223,11 @@ Todo: const variable is not supported yet.
 
 ### some features
 
-Todo: `defer` in Golang
+#### multi-assignment in Golang
 
-Todo: 
-multi-assignment in Golang
-like swap by `a, b = b, a`
+Multi-assignment is supported, like `a, b = c, d`.
+
+Moreover, because temp variables are generated for each right hand side expression,
+we can do cool stuff like *swapping by `a, b = b, a`*.
+
+### Todo: `defer` in Golang
