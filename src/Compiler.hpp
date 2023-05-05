@@ -690,6 +690,11 @@ class Compiler {
         } else if (expr->type() == TType::MakeExpT) {
             auto exp = reinterpret_cast<MakeExpAST*>(expr);
             auto varType = exp->info();
+            // assert varType is array
+            if (varType == "i32") {
+                cerr << "compileExpr: make type is not array" << endl;
+                assert(false);
+            }
             // assert len is int, maybe error while eval-ing
             if (inferType(exp->len) != "i32") {
                 cerr << "compileExpr: make len must be int" << endl;
@@ -697,9 +702,26 @@ class Compiler {
             }
             string lenLocal = compileExpr(os, exp->len);
             auto localName = genId();
+            {  // alloca on stack
+                // os << "\t" << localName << " = "
+                //    << "alloca " << varType << ", i32 " << lenLocal
+                //    << ", align 4" << endl;
+            }
+            // alloca on heap, call malloc
+            // get size of element type
+            auto elemSize = "8";  // ptr in x86_64 machine
+            if (reduceDim(varType) == "i32") {
+                elemSize = "4";  // int in x86_64 machine
+            }
+            // get size of array
+            auto sizeLocal = genId();
+            os << "\t" << sizeLocal << " = "
+               << "mul"
+               << " i32 " << lenLocal << ", " << elemSize << endl;
+            // call malloc
             os << "\t" << localName << " = "
-               << "alloca " << varType << ", i32 " << lenLocal << ", align 4"
-               << endl;
+               << "call noalias " << varType << " @malloc(i32 " << sizeLocal
+               << ")" << endl;
             return localName;
         } else if (expr->type() == TType::CallExpT) {
             auto exp = reinterpret_cast<CallExpAST*>(expr);

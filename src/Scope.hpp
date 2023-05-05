@@ -59,6 +59,7 @@ class Scope {
 
     static Scope* Universe() {
         auto universe = new Scope(nullptr);
+        // no malloc because it is called by make()
         universe->Insert(
             new Object("getchar", "@runtime_getchar",
                        new RuntimeFuncAST("i32", new vector<string>())));
@@ -81,8 +82,13 @@ class Scope {
     }
 };
 
+// the runtime functions
 const static string Header = R"(
 target triple = "x86_64-pc-linux-gnu"
+
+declare ptr @malloc(i32)
+declare i32 @getchar()
+declare i32 @putchar(i32)
 
 declare i32 @runtime_getchar()
 declare i32 @runtime_getint()
