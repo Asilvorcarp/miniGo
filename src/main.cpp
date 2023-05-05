@@ -39,7 +39,7 @@ void build(string inFile, string outLL) {
     // cout << *ast << endl;
 
     // output ast to json file
-    FILE *astFp = fopen("ast_static.o.json", "w");
+    FILE *astFp = fopen("ast.o.json", "w");
     fprintf(astFp, "%s", ast->toJson().dump(4).c_str());
     fclose(astFp);
 
@@ -53,7 +53,7 @@ void build(string inFile, string outLL) {
     string ll = compiler.Compile(unit);
 
     // output ast with dynamic information to json file
-    FILE *astDFp = fopen("ast_dynamic.o.json", "w");
+    FILE *astDFp = fopen("ast.o.json", "w");
     fprintf(astDFp, "%s", ast->toJson().dump(4).c_str());
     fclose(astDFp);
 
