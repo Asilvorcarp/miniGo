@@ -277,7 +277,12 @@ Multi-assignment is supported, like `a, b = c, d`.
 Moreover, because temp variables are generated for each right hand side expression,
 we can do cool stuff like **swapping by `a, b = b, a`**.
 
-### Todo: `defer` in Golang
+#### Todo: `defer` in Golang
+
+#### Other small features
+
+- char literal, like `'a'`
+- assign with binary operators, like `a += 1`
 
 ## Tests
 
