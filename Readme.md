@@ -46,6 +46,7 @@ To generate ll for `debug/main.go`:
 ```bash
 make ll
 ```
+This will also generate the AST json file ast.o.json for debugging.
 
 To generate executable for `debug/main.go`:
 ```bash
@@ -262,3 +263,21 @@ Moreover, because temp variables are generated for each right hand side expressi
 we can do cool stuff like **swapping by `a, b = b, a`**.
 
 ### Todo: `defer` in Golang
+
+## Tests
+
+Test files in `debug/`:
+
+- sort.go
+- matrix.go
+- course_selection.go
+
+To compile and run with go official compiler:
+
+```bash
+go run debug/main.go debug/runtime.go
+```
+
+// Todo: more decent way
+
+The `runtime.go` is included to simulate the builtin runtime functions of the miniGo compiler.
