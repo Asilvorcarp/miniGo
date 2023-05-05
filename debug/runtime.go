@@ -3,25 +3,25 @@ package main
 import "fmt"
 
 func getchar() int {
-	var n rune
-	fmt.Scanln(&n)
+	var n byte
+	fmt.Scanf("%c", &n)
 	return int(n)
 }
 
 func getint() int {
 	var n int
-	fmt.Scanln(&n)
+	fmt.Scanf("%d", &n)
 	return n
 }
 
 func putchar(n int) {
-	fmt.Println(rune(n))
+	fmt.Printf("%c", n)
 }
 
 func putint(n int) {
-	fmt.Println(n)
+	fmt.Printf("%d", n)
 }
 
 func println(n int) {
-	fmt.Println(n)
+	fmt.Printf("%d\n", n)
 }
