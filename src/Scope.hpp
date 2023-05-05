@@ -94,8 +94,8 @@ declare i32 @runtime_exit(i32)
 
 const string MainMain = R"(
 define i32 @main() {
-	call i32() @main_init()
-	call i32() @main_main()
+	call void() @main_init()
+	call void() @main_main()
 	ret i32 0
 }
 )";

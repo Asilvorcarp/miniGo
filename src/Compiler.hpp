@@ -112,8 +112,15 @@ class Compiler {
             stringstream ss;
             ss << "@" << file->packageName << "_" << g->idents->at(0);
             string mangledName = ss.str();
+            string varType = g->info();
             scope->Insert(new Object(g->idents->at(0), mangledName, g.get()));
-            os << mangledName << " = global i32 0\n";
+            if (varType == "i32") {
+                os << mangledName << " = global " << varType << " 0\n";
+            } else {
+                // TODO test this
+                os << mangledName << " = common global " << varType
+                   << " zeroinitializer\n";
+            }
         }
         if (file->Globals.size() > 0) {
             os << endl;
@@ -402,13 +409,13 @@ class Compiler {
                 cerr << "IncDecStmt: not support array" << endl;
                 assert(false);
             }
-            auto localName = genId();
-            os << "\t" << localName << " = load i32, i32* " << varMName
+            auto val = genId();
+            os << "\t" << val << " = load i32, i32* " << varMName
                << ", align 4\n";
-            os << "\t" << localName << " = " << op << " i32 " << varMName
-               << ", "
+            auto newVal = genId();
+            os << "\t" << newVal << " = " << op << " i32 " << val << ", "
                << "1" << endl;
-            os << "\tstore i32 " << localName << ", i32* " << varMName
+            os << "\tstore i32 " << newVal << ", i32* " << varMName
                << ", align 4\n";
         } else {
             cerr << "unknown stmt type" << endl;
@@ -455,6 +462,7 @@ class Compiler {
                 assert(false);
             }
             auto varType = obj->Node->info();
+            // to support index (tar->indexList)
             if (tar->indexList == nullptr) {
                 cerr << "compileStmt_assign: indexList is null" << endl;
                 assert(false);
@@ -468,19 +476,24 @@ class Compiler {
                 os << "\tstore " << valueTypeList[i] << " " << valueNameList[i]
                    << ", " << valueTypeList[i] << "* " << varMName << "\n";
             } else {
-                // to support index (tar->indexList)
                 // get %arrayidx
                 auto ptrName = genId();
-                stringstream subOs;
+                stringstream sub;
+                sub<< ", i32 0";
                 for (int j = 0; j < tar->indexList->size(); ++j) {
                     auto& idxExp = tar->indexList->at(j);
                     auto idxName = compileExpr(os, idxExp);
-                    subOs << ", i32 " << idxName;
+                    sub << ", i32 " << idxName;
                 }
-                os << "\t" << ptrName << " = getelementptr " << varMName << " "
-                   << varType;
-                os << subOs.str();
-                os << "\n";
+                os << "\t" << ptrName << " = getelementptr inbounds " << varType << ", "
+                   << varType << "* " << varMName << sub.str() << "\n";
+                auto finalType = reduceDim(varType, tar->indexList->size());
+                // assert finalType == valueTypeList[i]
+                if (finalType != valueTypeList[i]) {
+                    cerr << "compileStmt_assign: finalType != valueTypeList[i]"
+                         << endl;
+                    assert(false);
+                }
                 os << "\tstore " << valueTypeList[i] << " " << valueNameList[i]
                    << ", " << valueTypeList[i] << "* " << ptrName << "\n";
             }
@@ -494,20 +507,40 @@ class Compiler {
             clog << ">> compileExpr " << *expr << endl;
         }
         string localName;  // ret
-        string varName;
-        string funcName;
         if (expr->type() == TType::LValT) {
             auto exp0 = reinterpret_cast<LValAST*>(expr);
             auto obj = scope->Lookup(exp0->ident).second;
-            if (obj != nullptr) {
-                varName = obj->MangledName;
-            } else {
+            if (obj == nullptr) {
                 cerr << "var " << exp0->ident << " undefined" << endl;
                 assert(false);
             }
-            localName = genId();
-            os << "\t" << localName << " = load i32, i32* " << varName
-               << ", align 4\n";
+            auto varMName = obj->MangledName;
+            auto varType = obj->Node->info();
+            // to support index (exp0->indexList)
+            if (exp0->indexList == nullptr) {
+                cerr << "compileExpr: indexList is null" << endl;
+                assert(false);
+            } else if (exp0->indexList->empty()) {
+                localName = genId();
+                os << "\t" << localName << " = load " << varType << ", "
+                   << varType << "* " << varMName << ", align 4\n";
+            } else {
+                // get %arrayidx
+                auto ptrName = genId();
+                stringstream sub;
+                sub << ", i32 0";
+                for (int i = 0; i < exp0->indexList->size(); ++i) {
+                    auto& idxExp = exp0->indexList->at(i);
+                    auto idxName = compileExpr(os, idxExp);
+                    sub << ", i32 " << idxName;
+                }
+                localName = genId();
+                os << "\t" << ptrName << " = getelementptr inbounds " << varType << ", "
+                   << varType << "* " << varMName << sub.str() << "\n";
+                auto finalType = reduceDim(varType, exp0->indexList->size());
+                os << "\t" << localName << " = load " << finalType << ", "
+                   << finalType << "* " << ptrName << ", align 4\n";
+            }
             return localName;
         } else if (expr->type() == TType::NumberT) {
             auto exp1 = reinterpret_cast<NumberAST*>(expr);
@@ -639,6 +672,7 @@ class Compiler {
         } else if (expr->type() == TType::CallExpT) {
             auto exp5 = reinterpret_cast<CallExpAST*>(expr);
             auto obj = scope->Lookup(exp5->funcName).second;
+            string funcName;
             if (obj != nullptr) {
                 funcName = obj->MangledName;
             } else {
@@ -647,7 +681,6 @@ class Compiler {
                 assert(false);
             }
             auto funcDefAST = dynamic_cast<FuncDefAST*>(obj->Node);
-            localName = genId();
             int argNum = exp5->argList->size();
             // get return type and param types
             auto paramTypes = funcDefAST->getParamTypes();
@@ -658,7 +691,16 @@ class Compiler {
                 auto argName = compileExpr(os, exp5->argList->at(i));
                 argNames.push_back(argName);
             }
-            os << "\t" << localName << " = call " << funcType << " " << funcName
+            // no localName if return void
+            auto returnType = funcDefAST->getRetType();
+            stringstream sub;
+            if (returnType == "void") {
+                localName = "";
+            } else {
+                localName = genId();
+                sub << localName << " = ";
+            }
+            os << "\t" << sub.str() << "call " << funcType << " " << funcName
                << "(";
             for (int i = 0; i < argNum; i++) {
                 // TODO check type, now get type from params of func def
