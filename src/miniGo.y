@@ -46,14 +46,14 @@ using namespace std;
 %token INT RETURN PACKAGE IMPORT IF ELSE FOR DEFINE
     BREAK CONTINUE DEFER GOTO VAR FUNC CONST
     INC DEC MAKE
-%token <str_val> IDENT LE GE EQ NE AND OR
+%token <str_val> IDENT LE GE EQ NE AND OR BIN_ASSIGN
 %token <int_val> INT_CONST
 %token <char_val> CHAR_CONST '+' '-' '*' '/' '%' '!' '&' '|' '^' '<' '>' '=' 
 
 // 非终结符的类型定义
 %type <ast_val> FuncDef ReturnType Block Stmt ReturnStmt Exp ExpStmt IncDecStmt AssignStmt ShortVarDecl LVal Param BType TopLevelDecl PrimaryExp UnaryExp MulExp AddExp RelExp EqExp LAndExp LOrExp VarDecl ConstDecl VarSpec ConstSpec ForStmt SimpleStmt Decl IfStmt InitVal BranchStmt
 %type <int_val> Number ConstIndex ConstExp ConstInitVal
-%type <char_val> AddOp MulOp UnaryOp AssignBinOp
+%type <char_val> AddOp MulOp UnaryOp
 %type <str_val> RelOp EqOp PackClause
 %type <ast_list> TopLevelDeclList ParamList StmtList ArgList InitVals InitValList LVals
 %type <str_list> IDs
@@ -183,11 +183,10 @@ AssignStmt : LVals '=' InitVals {
     ast->targets = pvpAST($1);
     ast->initVals = pvpAST($3);
     $$ = ast;
-} | LVal AssignBinOp '=' InitVal {
-    $$ = new ShortVarDeclAST($1, $2, $4);
+} | LVal BIN_ASSIGN InitVal {
+    char op = (*$2)[0];
+    $$ = new ShortVarDeclAST($1, op, $3);
 };
-// not all bin op can be used in assign stmt, like ||, &&, etc.
-AssignBinOp: MulOp | AddOp;
 // i, j := 0, 10
 ShortVarDecl : LVals DEFINE InitVals {
     auto ast = new ShortVarDeclAST();
@@ -336,11 +335,7 @@ InitVals : InitVal { // just Exps
 InitValList : /* empty */ {
     auto l = new vpAST();
     $$ = l;
-} | InitValList ',' InitVal {
-    auto l = $1;
-    l->push_back(pAST($3));
-    $$ = l;
-};
+} | InitVals;
 ConstInitVal  : ConstExp ;
 ConstInitVals : ConstInitVal {
     auto l = new vector<int>();

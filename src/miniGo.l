@@ -74,6 +74,12 @@ Hexadecimal   0[xX][0-9a-fA-F]+
 "&&"            { yylval.str_val = new string(yytext); return AND; }
 "||"            { yylval.str_val = new string(yytext); return OR; }
 
+"+="            { yylval.str_val = new string(yytext); return BIN_ASSIGN; }
+"-="            { yylval.str_val = new string(yytext); return BIN_ASSIGN; }
+"*="            { yylval.str_val = new string(yytext); return BIN_ASSIGN; }
+"/="            { yylval.str_val = new string(yytext); return BIN_ASSIGN; }
+"%="            { yylval.str_val = new string(yytext); return BIN_ASSIGN; }
+
 {Identifier}    { yylval.str_val = new string(yytext); return IDENT; }
 
 {Decimal}       { yylval.int_val = strtol(yytext, nullptr, 0); return INT_CONST; }
