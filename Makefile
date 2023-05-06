@@ -76,6 +76,17 @@ compareResult : in
 	cat debug/test.temp.in | go run ./debug/main.go ./debug/_runtime.go > right.o.txt
 	cat debug/test.temp.in | build/main.out > my.o.txt
 
+# Cross compile for windows x86_64 (needs to be statically linked)
+# with package mingw-w64-gcc installed on archlinux
+
+CROSSFLAGS = -static-libgcc -static-libstdc++
+
+win:
+	@echo "--- Build Compiler ---"
+	flex -o build/miniGo.yy.cpp src/miniGo.l
+	bison -t src/miniGo.y -o build/miniGo.tab.hpp
+	x86_64-w64-mingw32-g++ -o build/miniGo.exe build/miniGo.yy.cpp src/main.cpp $(CFLAGS) $(CROSSFLAGS)
+
 clean:
 	@echo "--- Clean ---"	
 	-rm -f **/*.yy.*
