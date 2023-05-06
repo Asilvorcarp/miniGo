@@ -70,8 +70,8 @@ in: main
 	@echo "--- Output ---"	
 	@cat debug/test.temp.in | build/main.out
 
-compareLL : in
-	cat debug/test.temp.in | go run ./debug/main.go ./debug/runtime.go > right.o.txt
+compareResult : in
+	cat debug/test.temp.in | go run ./debug/main.go ./debug/_runtime.go > right.o.txt
 	cat debug/test.temp.in | build/main.out > my.o.txt
 
 clean:
