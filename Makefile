@@ -1,4 +1,4 @@
-.PHONY : all clean debug compareLL built_tests tests
+.PHONY : all clean debug compareLL built_tests tests winCp
 
 all: build
 
@@ -87,8 +87,17 @@ win:
 	bison -t src/miniGo.y -o build/miniGo.tab.hpp
 	x86_64-w64-mingw32-g++ -o build/miniGo.exe build/miniGo.yy.cpp src/main.cpp $(CFLAGS) $(CROSSFLAGS)
 
+# copy to windows and run
+
+win-test: win
+	cp -r tests/* /win/study/fc/project/go/
+	cp build/miniGo.exe /win/study/fc/project/go/
+	# call pwsh now!
+	/mnt/d/Pros/PowerShell/7/pwsh.exe -c 'cd D:\Win\study\fc\project\go\ && ./test.ps1'
+
 clean:
-	@echo "--- Clean ---"	
+	@echo "--- Clean ---"
+	-rm -f build/*.exe
 	-rm -f **/*.yy.*
 	-rm -f **/*.tab.*
 	-rm -f **/*.o.*
