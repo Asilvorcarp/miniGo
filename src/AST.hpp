@@ -1,7 +1,5 @@
 #pragma once
 
-#include <bits/stdc++.h>
-
 #include <iostream>
 #include <json.hpp>
 #include <memory>
