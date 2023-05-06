@@ -87,6 +87,7 @@ Hexadecimal   0[xX][0-9a-fA-F]+
 "--"            { return DEC; }
 
 "int"           { return INT; }
+"nil"           { return NIL; }
 
 "=="            { yylval.str_val = new string(yytext); return EQ; }
 "!="            { yylval.str_val = new string(yytext); return NE; }

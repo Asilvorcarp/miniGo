@@ -1,20 +1,20 @@
 package main
 
-import (
-	"fmt"
-)
+// import (
+// 	"fmt"
+// )
 
-func getchar() int {
-	var n byte
-	fmt.Scanf("%c", &n)
-	return int(n)
-}
+// func getchar() int {
+// 	var n byte
+// 	fmt.Scanf("%c", &n)
+// 	return int(n)
+// }
 
-func putchar(n int) {
-	fmt.Printf("%c", n)
-}
+// func putchar(n int) {
+// 	fmt.Printf("%c", n)
+// }
 
-// cat debug/course_selection.temp.in | go run debug/course_selection.go
+// // cat debug/course_selection.temp.in | go run debug/course_selection.go
 
 // fmt.Scanf("%d", &n)
 func getInt() int {
@@ -174,7 +174,8 @@ func putString(s []int) {
 
 // get string until '\n'
 func getLine(maxLen int) []int {
-	return getString(maxLen, []int{'\n', 0})
+	stop := []int{'\n', 0}
+	return getString(maxLen, stop)
 }
 
 // find char in string, start from x; return -1 if not found

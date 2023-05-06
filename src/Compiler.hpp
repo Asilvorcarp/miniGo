@@ -68,7 +68,7 @@ class Compiler {
     void genDefaultInit(ostream& os, string varType, string varMName) {
         if (varType == "i32") {
             // may include i64 in the future
-            os << "\tstore " << varType << " 0, " << varType << "* " << varMName
+            os << "\tstore " << varType << " 0, " << increaseDim(varType) << " " << varMName
                << "\n";
         } else {
             // TODO maybe init array, ptr
@@ -197,7 +197,7 @@ class Compiler {
                 os << "\t" << mangledName << " = alloca " << paramType
                    << ", align 4\n";
                 os << "\tstore " << paramType << " " << inputArgName << ", "
-                   << paramType << "* " << mangledName << "\n";
+                   << increaseDim(paramType) << " " << mangledName << "\n";
             }
 
             // body // TODO test this
@@ -266,7 +266,7 @@ class Compiler {
                     // init with val
                     auto valLocal = compileExpr(os, stm->initVals->at(i));
                     os << "\tstore " << varType << " " << valLocal << ", "
-                       << varType << "* " << mangledName << "\n";
+                       << increaseDim(varType) << " " << mangledName << "\n";
                 } else {
                     // init with default val (zero val)
                     genDefaultInit(os, varType, mangledName);
@@ -503,7 +503,7 @@ class Compiler {
                     assert(false);
                 }
                 os << "\tstore " << valueTypeList[i] << " " << valueNameList[i]
-                   << ", " << valueTypeList[i] << "* " << varMName << "\n";
+                   << ", " << increaseDim(valueTypeList[i]) << " " << varMName << "\n";
             } else {
                 // get %arrayidx
                 string ptrName = varMName;
@@ -520,7 +520,7 @@ class Compiler {
                     }
                     string ptrValName = genId();
                     os << "\t" << ptrValName << " = load " << curType << ", "
-                       << curType << "* " << ptrName << ", align 4" << endl;
+                       <<increaseDim( curType )<< " " << ptrName << ", align 4" << endl;
                     string nextPtrName = genId();
                     string redCurType = reduceDim(curType);
                     os << "\t" << nextPtrName << " = getelementptr inbounds "
@@ -531,7 +531,7 @@ class Compiler {
                 }
                 // TODO assert valueType == curType, type checking
                 os << "\tstore " << valueTypeList[i] << " " << valueNameList[i]
-                   << ", " << valueTypeList[i] << "* " << ptrName << "\n";
+                   << ", " << increaseDim(valueTypeList[i]) << " " << ptrName << "\n";
             }
         }
     }
@@ -559,7 +559,7 @@ class Compiler {
             } else if (exp->indexList->empty()) {
                 localName = genId();
                 os << "\t" << localName << " = load " << varType << ", "
-                   << varType << "* " << varMName << ", align 4\n";
+                   << increaseDim(varType) << " " << varMName << ", align 4\n";
             } else {
                 // get %arrayidx
                 auto ptrName = varMName;
@@ -575,7 +575,7 @@ class Compiler {
                     }
                     string ptrValName = genId();
                     os << "\t" << ptrValName << " = load " << curType << ", "
-                       << curType << "* " << ptrName << ", align 4" << endl;
+                       << increaseDim(curType) << " " << ptrName << ", align 4" << endl;
                     string nextPtrName = genId();
                     string redCurType = reduceDim(curType);
                     os << "\t" << nextPtrName << " = getelementptr inbounds "
@@ -586,9 +586,12 @@ class Compiler {
                 }
                 localName = genId();
                 os << "\t" << localName << " = load " << curType << ", "
-                   << curType << "* " << ptrName << ", align 4\n";
+                   << increaseDim(curType) << " " << ptrName << ", align 4\n";
             }
             return localName;
+        } else if (expr->type() == TType::NilT) {
+            // llvm const
+            return "null";
         } else if (expr->type() == TType::NumberT) {
             auto exp = reinterpret_cast<NumberAST*>(expr);
             localName = genId();
@@ -605,12 +608,25 @@ class Compiler {
                 clog << ">> doing left" << endl;
             }
             auto left = compileExpr(os, exp->left);
+            auto leftType = inferType(exp->left);
             if (debug) {
                 clog << ">> doing right" << endl;
             }
             auto right = compileExpr(os, exp->right);
+            auto rightType = inferType(exp->right);
             if (debug) {
                 clog << ">> done right" << endl;
+            }
+            // TODO type checking, ptr (nil) matches to any ptr
+            // thus need to fix all type checking system
+            string finalType = leftType;
+            if(leftType.find("*") != string::npos || leftType == "ptr") {
+                finalType = "ptr";
+                // assert op is EQ or NE
+                if(exp->op != BinExpAST::Op::EQ && exp->op != BinExpAST::Op::NE) {
+                    cerr << "compileExpr: ptr can only be compared with EQ or NE" << endl;
+                    assert(false);
+                }
             }
             switch (exp->op) {
                 case BinExpAST::Op::ADD:
@@ -780,7 +796,7 @@ class Compiler {
                    << " " << localName << ", i32 " << idxLocal << endl;
                 os << "\t"
                    << "store " << elemType << " " << initValLocal << ", "
-                   << elemType << "* " << elemPtrLocal << endl;
+                   << increaseDim(elemType) << " " << elemPtrLocal << endl;
             }
             return localName;
         } else if (expr->type() == TType::CallExpT) {
@@ -846,6 +862,7 @@ class Compiler {
         return localName;
     }
 
+    // reduce dimension of array type
     // TODO test this
     // change "[5 x [4 x i32]]" to "[4 x i32]"
     // change "i32**" to "i32*"
@@ -874,11 +891,21 @@ class Compiler {
         return res;
     }
 
+    // reduce dimension of array type for dim times
     string reduceDim(string t, int dim) {
         for (int i = 0; i < dim; i++) {
             t = reduceDim(t);
         }
         return t;
+    }
+
+    // increase dimension of array type
+    // support only ptr now (not like [5 x [4 x i32]])
+    string increaseDim(string t) {
+        if(t=="ptr"){
+            return "ptr";
+        }
+        return t + "*";
     }
 
     string inferType(const pAST& _expr) {
@@ -929,6 +956,8 @@ class Compiler {
             return expr->info();
         } else if (expr->type() == TType::ArrayExpT) {
             // always specified in code, like []int{1, 2, 3}
+            return expr->info();
+        } else if (expr->type() == TType::NilT) {
             return expr->info();
         } else {
             cerr << "inferType: unknown type of ExpAST" << endl;

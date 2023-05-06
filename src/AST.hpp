@@ -40,7 +40,7 @@ enum class TType {
     RuntimeFuncT,
     MakeExpT,
     ArrayExpT,
-    _3
+    NilT
 };
 
 // 所有 AST 的基类
@@ -883,6 +883,27 @@ class ArrayExpAST : public ExpAST {
                 j["initValList"].push_back(exp->toJson());
             }
         }
+        return j;
+    }
+};
+
+// golang nil type, similar to nullptr
+class NilAST : public ExpAST {
+   public:
+    TType ty = TType::NilT;
+
+    int eval() const override {
+        // TODO maybe enable eval ptr
+        cerr << "eval: nil cannot be int" << endl;
+        assert(false);
+        return -1;
+    }
+    BaseAST *copy() const override { return new NilAST(); }
+    string info() const override { return "ptr"; }
+    TType type() const override { return ty; }
+    json toJson() const override {
+        json j;
+        j["type"] = "NilAST";
         return j;
     }
 };

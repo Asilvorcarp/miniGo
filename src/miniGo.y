@@ -45,7 +45,7 @@ using namespace std;
 // 注意 IDENT 和 INT_CONST 会返回 token 的值, 分别对应 str_val 和 int_val
 %token INT RETURN PACKAGE IMPORT IF ELSE FOR DEFINE
     BREAK CONTINUE DEFER GOTO VAR FUNC CONST
-    INC DEC MAKE
+    INC DEC MAKE NIL
 %token <str_val> IDENT LE GE EQ NE AND OR BIN_ASSIGN
 %token <int_val> INT_CONST
 %token <char_val> CHAR_CONST '+' '-' '*' '/' '%' '!' '&' '|' '^' '<' '>' '=' 
@@ -421,6 +421,8 @@ PrimaryExp : '(' Exp ')' {
     $$ = new ParenExpAST($2);
 } | LVal | Number {
     $$ = new NumberAST($1);
+} | NIL {
+    $$ = new NilAST();
 };
 UnaryExp : PrimaryExp | IDENT '(' ArgList ')' {
     $$ = new CallExpAST($1, $3);
