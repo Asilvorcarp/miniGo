@@ -541,9 +541,7 @@ func main() {
 		}
 		putIndentCC(1, 430, '}', '\n')
 	}
-	if gpa == 0 {
-		gpa = 0
-	} else {
+	if gpa != 0 {
 		gpa = gpa / ha
 	}
 	// output
@@ -589,13 +587,13 @@ func result(gpa int, ha int, hc int, cr int, possible []int, possibleNum int) {
 		putSpace(2)
 		putString(sNone)
 		endl()
-	} else {
-		for i := 0; i < possibleNum; i++ {
-			putSpace(2)
-			putchar('c')
-			putInt(possible[i])
-			endl()
-		}
+		return
+	}
+	for i := 0; i < possibleNum; i++ {
+		putSpace(2)
+		putchar('c')
+		putInt(possible[i])
+		endl()
 	}
 	return
 }
