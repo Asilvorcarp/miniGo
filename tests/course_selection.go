@@ -221,17 +221,13 @@ func substring(s []int, start int, end int) []int {
 	return sub
 }
 
-// print n/100 as float with 1 decimal and round up
-func putGpa(n int) {
-	putInt(n / 100)
-	// one decimal
-	putchar('.')
-	d := n % 100 / 10
-	// round up
-	if n%10 >= 5 {
-		d++
+// compare two strings
+func strcmp(s1 []int, s2 []int) int {
+	i := 0
+	for s1[i] != 0 && s2[i] != 0 && s1[i] == s2[i] {
+		i++
 	}
-	putInt(d)
+	return s1[i] - s2[i]
 }
 
 // end line
@@ -244,6 +240,19 @@ func putSpace(n int) {
 	for i := 0; i < n; i++ {
 		putchar(' ')
 	}
+}
+
+// print n/100 as float with 1 decimal and round up
+func putGpa(n int) {
+	putInt(n / 100)
+	// one decimal
+	putchar('.')
+	d := n % 100 / 10
+	// round up
+	if n%10 >= 5 {
+		d++
+	}
+	putInt(d)
 }
 
 // get a conjunction from string, start from index x, like "c1,c2" to [1,2,-1]
