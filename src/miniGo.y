@@ -55,9 +55,14 @@ using namespace std;
 %type <int_val> Number ConstIndex ConstExp ConstInitVal
 %type <char_val> AddOp MulOp UnaryOp AssignBinOp
 %type <str_val> RelOp EqOp PackClause
-%type <ast_list> TopLevelDeclList ParamList StmtList ArgList InitVals LVals
+%type <ast_list> TopLevelDeclList ParamList StmtList ArgList InitVals InitValList LVals
 %type <str_list> IDs
 %type <int_list> ConstIndexList ConstInitVals
+
+// - about their emptyness -
+// if something cannot be empty, then
+//   somethings cannot be empty (at least one)
+//   somethingList can be empty (zero or more)
 
 %%
 
@@ -172,8 +177,7 @@ IncDecStmt : LVal INC {
     ast->isInc = false;
     $$ = ast;
 };
-// TODO support multiple assign in one stmt
-// And maybe combine it with ShortVarDecl
+// TODO maybe combine it with ShortVarDecl
 AssignStmt : LVals '=' InitVals {
     auto ast = new ShortVarDeclAST();
     ast->targets = pvpAST($1);
@@ -311,14 +315,28 @@ IDs : IDENT {
     l->push_back(*unique_ptr<string>($3));
     $$ = l;
 };
-// no init for array like: var a [2]int = {1, 2} // C style
-// support in the future: var a [2]int = [2]int{1, 2}
-InitVal : Exp ;
+// initVal can be exp, array exp, make exp
+InitVal : BType '{' InitValList '}' {
+    auto ast = new ArrayExpAST();
+    ast->t = pAST($1);
+    ast->initValList = pvpAST($3);
+    $$ = ast;
+} | MAKE '(' BType ',' Exp ')' {
+    $$ = new MakeExpAST($3, $5);
+} | Exp;
 InitVals : InitVal { // just Exps
     auto l = new vpAST();
     l->push_back(pAST($1));
     $$ = l;
 } | InitVals ',' InitVal {
+    auto l = $1;
+    l->push_back(pAST($3));
+    $$ = l;
+};
+InitValList : /* empty */ {
+    auto l = new vpAST();
+    $$ = l;
+} | InitValList ',' InitVal {
     auto l = $1;
     l->push_back(pAST($3));
     $$ = l;
@@ -413,8 +431,6 @@ UnaryExp : PrimaryExp | IDENT '(' ArgList ')' {
     $$ = new CallExpAST($1, $3);
 } | UnaryOp UnaryExp {
     $$ = new UnaryExpAST($1, $2);
-} | MAKE '(' BType ',' Exp ')' {
-    $$ = new MakeExpAST($3, $5);
 };
 UnaryOp: '+' | '-' | '!';
 ArgList : /* empty */ {

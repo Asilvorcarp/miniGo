@@ -33,40 +33,40 @@ func getInt() int {
 	return n
 }
 
-// func inArray(n int, arr []int) int {
-// 	for i := 0; i < len(arr); i++ {
-// 		if arr[i] == n {
-// 			return 1
-// 		}
-// 	}
-// 	return 0
-// }
+func inArray(n int, arr []int, len int) int {
+	for i := 0; i < len; i++ {
+		if arr[i] == n {
+			return 1
+		}
+	}
+	return 0
+}
 
-// // get string before any stop char
-// func getString(maxLen int, stopChars []int) []int {
-// 	s := make([]int, maxLen)
-// 	i := 0
-// 	c := getchar()
-// 	for inArray(c, stopChars) == 0 && i < maxLen {
-// 		s[i] = c
-// 		i++
-// 		c = getchar()
-// 	}
-// 	s[i] = 0
-// 	return s
-// }
+// get string before any stop char
+func getString(maxLen int, stopChars []int) []int {
+	s := make([]int, maxLen)
+	i := 0
+	c := getchar()
+	for inArray(c, stopChars) == 0 && i < maxLen {
+		s[i] = c
+		i++
+		c = getchar()
+	}
+	s[i] = 0
+	return s
+}
 
-// // fmt.Printf("%d", n)
-// func putInt(n int) {
-// 	if n < 0 {
-// 		putchar('-')
-// 		n = -n
-// 	}
-// 	if n/10 != 0 {
-// 		putInt(n / 10)
-// 	}
-// 	putchar(n%10 + '0')
-// }
+// fmt.Printf("%d", n)
+func putInt(n int) {
+	if n < 0 {
+		putchar('-')
+		// n = -n
+	}
+	if n/10 != 0 {
+		putInt(n / 10)
+	}
+	putchar(n%10 + '0')
+}
 
 // // put int with width
 // func putIntW(n int, width int) {
@@ -106,9 +106,6 @@ func getInt() int {
 // 	}
 // }
 
-// // "Incompatible Dimensions" as int array
-// var err = []int{73, 110, 99, 111, 109, 112, 97, 116, 105, 98, 108, 101, 32, 68, 105, 109, 101, 110, 115, 105, 111, 110, 115, 0}
-
 // func main() {
 // 	aRows, aCols := getInt(), getInt()
 // 	matrixA := parseMatrix(aRows, aCols)
@@ -116,13 +113,7 @@ func getInt() int {
 // 	bRows, bCols := getInt(), getInt()
 // 	matrixB := parseMatrix(bRows, bCols)
 
-// 	// error if dim not match
-// 	if aCols != bRows {
-// 		putString(err)
-// 		putchar('\n')
-// 		return
-// 	}
-// 	result := calculateProduct(matrixA, matrixB)
+// 	result := calculateProduct(matrixA, matrixB, aRows, aCols, bRows, bCols)
 
 // 	outputMatrix(result)
 // }
@@ -138,15 +129,21 @@ func getInt() int {
 // 	return matrix
 // }
 
-// func calculateProduct(matrixA [][]int, matrixB [][]int) [][]int {
-// 	m := len(matrixA)
-// 	n := len(matrixB[0])
-// 	result := make([][]int, m)
-// 	for i := 0; i < m; i++ {
-// 		row := make([]int, n)
-// 		for j := 0; j < n; j++ {
+// // "Incompatible Dimensions\n" as int array
+// var err = []int{73, 110, 99, 111, 109, 112, 97, 116, 105, 98, 108, 101, 32, 68, 105, 109, 101, 110, 115, 105, 111, 110, 115, 10, 0}
+
+// func calculateProduct(matrixA [][]int, matrixB [][]int, ar int, ac int, br int, bc int) [][]int {
+// 	// error if dim not match a.k.a. ac != br
+// 	if ac != br {
+// 		putString(err)
+// 		return
+// 	}
+// 	result := make([][]int, ar)
+// 	for i := 0; i < ar; i++ {
+// 		row := make([]int, bc)
+// 		for j := 0; j < bc; j++ {
 // 			sum := 0
-// 			for k := 0; k < len(matrixA[i]); k++ {
+// 			for k := 0; k < ac; k++ {
 // 				sum += matrixA[i][k] * matrixB[k][j]
 // 			}
 // 			row[j] = sum
@@ -156,10 +153,10 @@ func getInt() int {
 // 	return result
 // }
 
-// func outputMatrix(matrix [][]int) {
-// 	for _, row := range matrix {
-// 		for _, value := range row {
-// 			putIntW(value, 10)
+// func outputMatrix(matrix [][]int, rows int, cols int) {
+// 	for i := 0; i < rows; i++ {
+// 		for j := 0; j < cols; j++ {
+// 			putIntW(matrix[i][j], 10)
 // 		}
 // 		putchar('\n')
 // 	}

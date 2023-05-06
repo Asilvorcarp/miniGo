@@ -723,6 +723,49 @@ class Compiler {
                << "call noalias " << varType << " @malloc(i32 " << sizeLocal
                << ")" << endl;
             return localName;
+        } else if (expr->type() == TType::ArrayExpT) {
+            auto exp = reinterpret_cast<ArrayExpAST*>(expr);
+            auto varType = exp->info();
+            // assert varType is array
+            if (varType == "i32") {
+                cerr << "compileExpr: array exp type is not array" << endl;
+                assert(false);
+            }
+            auto localName = genId();
+            {  // alloca on stack
+                // os << "\t" << localName << " = "
+                //    << "alloca " << varType << ", i32 " << elemNum
+                //    << ", align 4" << endl;
+            }
+            // alloca on heap, call malloc
+            // get size of element type
+            auto elemType = reduceDim(varType);
+            auto elemSize = 8;  // ptr in x86_64 machine
+            if (elemType == "i32") {
+                elemSize = 4;  // int in x86_64 machine
+            }
+            // get size of array
+            int elemNum = exp->initValList->size();
+            auto arrSize = elemNum * elemSize;
+            // call malloc
+            os << "\t" << localName << " = "
+               << "call noalias " << varType << " @malloc(i32 "
+               << to_string(arrSize) << ")" << endl;
+            // get and store each element
+            for (int i = 0; i < elemNum; i++) {
+                // TODO: check type
+                auto initValLocal = compileExpr(os, exp->initValList->at(i));
+                auto idxLocal = to_string(i);
+                auto elemPtrLocal = genId();
+                // here varType is usually elemType*
+                os << "\t" << elemPtrLocal << " = "
+                   << "getelementptr inbounds " << elemType << ", " << varType
+                   << " " << localName << ", i32 " << idxLocal << endl;
+                os << "\t"
+                   << "store " << elemType << " " << initValLocal << ", "
+                   << elemType << "* " << elemPtrLocal << endl;
+            }
+            return localName;
         } else if (expr->type() == TType::CallExpT) {
             auto exp = reinterpret_cast<CallExpAST*>(expr);
             auto obj = scope->Lookup(exp->funcName).second;

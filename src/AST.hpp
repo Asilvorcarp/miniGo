@@ -37,7 +37,7 @@ enum class TType {
     // for future use
     RuntimeFuncT,
     MakeExpT,
-    _2,
+    ArrayExpT,
     _3
 };
 
@@ -620,12 +620,9 @@ class ShortVarDeclAST : public StmtAST {
         isDefine = false;
         targets = make_unique<vector<pAST>>();
         targets->push_back(pAST(target));
-        cout << target->copy()->toJson().dump(4) << endl;
         auto binInit = new BinExpAST(_op, target->copy(), initVal->copy());
         initVals = make_unique<vector<pAST>>();
         initVals->push_back(pAST(binInit));
-        cout << binInit->toJson().dump(4) << endl;
-        cout << toJson().dump(4) << endl;
     }
 
     TType type() const override { return ty; }
@@ -789,6 +786,7 @@ class IncDecStmtAST : public StmtAST {
 
 // make(Type t, int len)
 // e.g: make([][]int, 10)
+// actually initValAST not expAST
 class MakeExpAST : public ExpAST {
    public:
     TType ty = TType::MakeExpT;
@@ -816,6 +814,45 @@ class MakeExpAST : public ExpAST {
         j["t"] = t->toJson();
         if (len != nullptr) {
             j["len"] = len->toJson();
+        }
+        return j;
+    }
+};
+
+// actually initValAST not expAST
+class ArrayExpAST : public ExpAST {
+   public:
+    TType ty = TType::ArrayExpT;
+    pAST t;  // BType, array type like []int
+    pvpAST initValList; // list of initVal, cannot be nullptr
+
+    int eval() const override {
+        cerr << "eval: array exp cannot be int" << endl;
+        assert(false);
+        return -1;
+    }
+    BaseAST *copy() const override {
+        auto ret = new ArrayExpAST();
+        ret->t = pAST(t->copy());
+        ret->initValList = make_unique<vpAST>();
+        for (auto &exp : *initValList) {
+            ret->initValList->push_back(pAST(exp->copy()));
+        }
+        return ret;
+    }
+    string info() const override {
+        return t->info();
+    }
+    TType type() const override { return ty; }
+    json toJson() const override {
+        json j;
+        j["type"] = "ArrayExpAST";
+        j["t"] = t->toJson();
+        if (initValList != nullptr) {
+            j["initValList"] = json::array();
+            for (auto &exp : *initValList) {
+                j["initValList"].push_back(exp->toJson());
+            }
         }
         return j;
     }
