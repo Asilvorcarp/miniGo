@@ -51,11 +51,24 @@ silent:
 	bison -t src/miniGo.y -o build/miniGo.tab.hpp
 	clang++ -o build/miniGo.out build/miniGo.yy.cpp src/main.cpp $(CFLAGS) $(SILENTFLAG)
 
+BUILD_RUNTIME = clang -S -emit-llvm src/runtime.c -o build/runtime.o.ll
+CLANG_LINK = clang build/runtime.o.ll build/$1.o.ll -o build/$1.out
+
+# build silent before tests
+
 tests:
-    # @for test_file in tests/*.sh; do \
-    #     echo "Running test: $$test_file"; \
-    #     bash $$test_file || exit 1; \
-    # done
+	@for test_file in tests/*.go; do \
+        base_name=$$(basename $$test_file .go); \
+        echo "Running test: $$base_name"; \
+        $(BUILD_RUNTIME); \
+        build/miniGo.out $$test_file -o build/$$base_name.o.ll; \
+        $(call CLANG_LINK,$$base_name); \
+        for input_file in tests/$$base_name.*in; do \
+            echo "Input file: $$input_file"; \
+            echo "Output:"; \
+            ./build/$$base_name.out < $$input_file || exit 1; \
+        done; \
+    done
 
 in: main
 	@echo "--- Run Main with Input ---"	
