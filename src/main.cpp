@@ -13,6 +13,7 @@ using namespace std;
 // 其次, 因为这个文件不是我们自己写的, 而是被 Bison 生成出来的
 // 你的代码编辑器/IDE 很可能找不到这个文件, 然后会给你报错 (虽然编译不会出错)
 // 看起来会很烦人, 于是干脆采用这种看起来 dirty 但实际很有效的手段
+
 extern FILE *yyin;
 extern int yyparse(unique_ptr<BaseAST> &ast);
 extern int yydebug;
@@ -28,20 +29,27 @@ void build(string inFile, string outLL) {
 
     unique_ptr<BaseAST> ast;
 
+    // silent to suppress output
+#ifndef SILENT
     cout << ">> parsing... " << endl;
+#endif
     auto ret = yyparse(ast);
+#ifndef SILENT
     cout << ">> done" << endl;
+#endif
 
     assert(!ret);
 
-    // // print ast as json
+    // // print ast as json to stdin
     // cout << ">> ast: " << endl;
     // cout << *ast << endl;
 
     // output ast to json file
+#ifndef SILENT
     FILE *astFp = fopen("ast.o.json", "w");
     fprintf(astFp, "%s", ast->toJson().dump(4).c_str());
     fclose(astFp);
+#endif
 
     // >> compile to .ll
     auto compiler = Compiler();
@@ -62,8 +70,6 @@ void build(string inFile, string outLL) {
     fprintf(fp, "%s", ll.c_str());
     fclose(fp);
 
-    // after this,
-    // clang outLL runtime.ll -o a.out
 }
 
 int main(int argc, const char *argv[]) {

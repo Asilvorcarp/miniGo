@@ -1,26 +1,28 @@
-.PHONY : all clean debug compareLL
+.PHONY : all clean debug compareLL tests
 
-all: miniGo
+all: build
 
 CFLAGS = -std=c++20 -Isrc -Ibuild
 # show bison parsing trace
 DEBUGFLAG = -DYYDEBUG -g -O0
+# no output from compiler, including stdout and ast.o.json
+SILENTFLAG = -DSILENT -O3
 
 # ensure debug/main.go for ll
 # ensure debug/test.temp.in for test
 
-miniGo:
+build:
 	@echo "--- Build Compiler ---"
 	@mkdir -p build
 	flex -o build/miniGo.yy.cpp src/miniGo.l
 	bison -t src/miniGo.y -o build/miniGo.tab.hpp
 	clang++ -o build/miniGo.out build/miniGo.yy.cpp src/main.cpp $(CFLAGS)
 
-ll: miniGo
+ll: build
 	@echo "--- Build Runtime ---"
 	clang -S -emit-llvm src/runtime.c -o build/runtime.o.ll
 	@echo "--- Build Main LL ---"
-	build/miniGo.out debug/main.go -o debug/main.o.ll
+	build/miniGo.out debug/main.go -o build/main.o.ll
 
 debugLL: 
 	@echo "--- Build Compiler ---"
@@ -30,18 +32,30 @@ debugLL:
 	@echo "--- Build Runtime ---"
 	clang -S -emit-llvm src/runtime.c -o build/runtime.o.ll
 	@echo "--- Build Main LL ---"
-	build/miniGo.out debug/main.go -o debug/main.o.ll
+	build/miniGo.out debug/main.go -o build/main.o.ll
 
 gdb:
-	gdb --args build/miniGo.out debug/main.go -o debug/main.o.ll
+	gdb --args build/miniGo.out debug/main.go -o build/main.o.ll
 
 main: ll
 	@echo "--- Build Main ---"
-	clang build/runtime.o.ll debug/main.o.ll -o build/main.out
+	clang build/runtime.o.ll build/main.o.ll -o build/main.out
 
 test: main
 	@echo "--- Run Main ---"	
 	@build/main.out
+
+silent:
+	@echo "--- Build Compiler ---"
+	flex -o build/miniGo.yy.cpp src/miniGo.l
+	bison -t src/miniGo.y -o build/miniGo.tab.hpp
+	clang++ -o build/miniGo.out build/miniGo.yy.cpp src/main.cpp $(CFLAGS) $(SILENTFLAG)
+
+tests:
+    # @for test_file in tests/*.sh; do \
+    #     echo "Running test: $$test_file"; \
+    #     bash $$test_file || exit 1; \
+    # done
 
 in: main
 	@echo "--- Run Main with Input ---"	

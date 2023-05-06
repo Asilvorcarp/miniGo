@@ -83,7 +83,10 @@ func putIntW(n int, width int) {
 		goDown /= 10
 		goUp *= 10
 	}
-	spaces := 10 - digits
+	spaces := width - digits
+	if n < 0 {
+		spaces--
+	}
 	for i := 0; i < spaces; i++ {
 		putchar(' ')
 	}
