@@ -1,20 +1,20 @@
 package main
 
-// import (
-// 	"fmt"
-// )
+import (
+	"fmt"
+)
 
-// func getchar() int {
-// 	var n byte
-// 	fmt.Scanf("%c", &n)
-// 	return int(n)
-// }
+func getchar() int {
+	var n byte
+	fmt.Scanf("%c", &n)
+	return int(n)
+}
 
-// func putchar(n int) {
-// 	fmt.Printf("%c", n)
-// }
+func putchar(n int) {
+	fmt.Printf("%c", n)
+}
 
-// // cat debug/course_selection.temp.in | go run debug/course_selection.go
+// cat debug/course_selection.temp.in | go run debug/course_selection.go
 
 // fmt.Scanf("%d", &n)
 func getInt() int {
@@ -132,6 +132,17 @@ func putInt(n int) {
 		putInt(n / 10)
 	}
 	putchar(n%10 + '0')
+}
+
+func putIntC(n int, c int) {
+	putInt(n)
+	putchar(c)
+}
+
+func putIntCC(n int, c1 int, c2 int) {
+	putInt(n)
+	putchar(c1)
+	putchar(c2)
 }
 
 // put int with width
@@ -328,7 +339,7 @@ func main() {
 	// 		putString(lines[i])
 	// 		endl()
 	// 	}
-	// 	putInt(11111111111)
+	// 	putInt(11111)
 	// 	endl()
 	// }
 	// id of input order
@@ -361,17 +372,17 @@ func main() {
 		part2 := substring(lines[i], div1+1, div2)
 		part3 := substring(lines[i], div2+1, div3)
 		part4 := substring(lines[i], div3+1, len)
-		// { // print substrings
-		// 	putString(part1)
-		// 	putchar('!')
-		// 	putString(part2)
-		// 	putchar('!')
-		// 	putString(part3)
-		// 	putchar('!')
-		// 	putString(part4)
-		// 	putchar('~')
-		// 	endl()
-		// }
+		{ // print substrings
+			putString(part1)
+			putchar('!')
+			putString(part2)
+			putchar('!')
+			putString(part3)
+			putchar('!')
+			putString(part4)
+			putchar('~')
+			endl()
+		}
 		// get id and cred
 		id := getIntFromStrStart(part1)
 		ids[i] = id
@@ -397,46 +408,58 @@ func main() {
 		// get logic
 		logic := getDisjunction(part3)
 		logics[id] = logic
-		// { // print logic
-		// 	fmt.Println(" >> logic of", id, ":")
-		// 	ii := 0
-		// 	for logic[ii] != nil {
-		// 		jj := 0
-		// 		for logic[ii][jj] != -1 {
-		// 			putInt(logic[ii][jj])
-		// 			putchar(' ')
-		// 			jj++
-		// 		}
-		// 		endl()
-		// 		ii++
-		// 	}
-		// }
+		{ // print logic
+			putSpace(5)
+			putchar('-')
+			putchar(' ')
+			putInt(id)
+			putchar(' ')
+			putchar('-')
+			endl()
+			ii := 0
+			for logic[ii] != nil {
+				jj := 0
+				for logic[ii][jj] != -1 {
+					putInt(logic[ii][jj])
+					putchar(' ')
+					jj++
+				}
+				endl()
+				ii++
+			}
+		}
 	}
+	putchar('!')
+	endl()
 	// calculate
-	for i := 0; i < lineNum; i++ {
-		id := ids[i]
-		cred := creds[id]
-		score := scores[id]
-		logic := logics[id]
-		if score == -1 { // empty score
-			cr += cred
-		} else if score == 0 { // F
-			ha += cred
-			cr += cred
+	for idx := 0; idx < lineNum; idx++ {
+		putIntCC(430, 'F', ' ')
+		curId := ids[idx]
+		curCred := creds[curId]
+		curScore := scores[curId]
+		curLogic := logics[curId]
+		if curScore == -1 { // empty curScore
+			cr = cr + curCred
+		} else if curScore == 0 { // F
+			ha = ha + curCred
+			cr = cr + curCred
 		} else { // ABCD
-			ha += cred
-			hc += cred
+			ha = ha + curCred
+			hc = hc + curCred
 		}
 		// check prerequisites
 		ii := 0
 		// disjunction
 		boolDisj := 0
-		for logic[ii] != nil {
+		for curLogic[ii] != nil {
+			putIntCC(449, 'F', ' ')
 			jj := 0
 			// conjunction
 			boolConj := 1
-			for logic[ii][jj] != -1 {
-				id2 := logic[ii][jj]
+			for curLogic[ii][jj] != -1 {
+				putIntCC(454, 'F', ' ')
+				endl()
+				id2 := curLogic[ii][jj]
 				score2 := scores[id2]
 				if score2 <= 0 { //
 					// not set or empty or F
@@ -451,19 +474,26 @@ func main() {
 			}
 			ii++
 		}
-		if logic[0] == nil {
+		if curLogic[0] == nil {
 			// no prerequisite
 			boolDisj = 1
 		}
-		if boolDisj == 1 && score <= 0 {
-			possible[possibleNum] = id
+		if boolDisj == 1 && curScore <= 0 {
+			possible[possibleNum] = curId
 			possibleNum++
 		}
 		// calculate the numerator of GPA * 100
-		if score > 0 {
-			gpa += 100 * score * cred
+		if curScore > 0 {
+			gpa = gpa + 100*curScore*curCred
+			{ // print gpa now
+				putchar('G')
+				putInt(gpa)
+				endl()
+			}
 		}
 	}
+	putchar('!')
+	endl()
 	if gpa == 0 {
 		gpa = 0
 	} else {

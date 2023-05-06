@@ -174,7 +174,8 @@ func putString(s []int) {
 
 // get string until '\n'
 func getLine(maxLen int) []int {
-	return getString(maxLen, []int{'\n', 0})
+	stop := []int{'\n', 0}
+	return getString(maxLen, stop)
 }
 
 // find char in string, start from x; return -1 if not found
@@ -245,7 +246,7 @@ func getConjunction(s []int, x int) []int {
 		ret[idx] = res[0]
 		idx++
 	}
-	fmt.Println("getConjunction returning ", ret)
+	// fmt.Println("getConjunction returning ", ret)
 	return ret
 }
 
@@ -283,7 +284,7 @@ func getDisjunction(s []int) [][]int {
 		idx++
 		start = end + 1
 	}
-	fmt.Println("getDisjunction returning ", ret)
+	// fmt.Println("getDisjunction returning ", ret)
 	return ret
 }
 
@@ -318,18 +319,18 @@ func main() {
 		line = getLine(512)
 		lineNum++
 	}
-	{ // print line number
-		putInt(lineNum)
-		endl()
-	}
-	{ // print lines
-		for i := 0; i < lineNum; i++ {
-			putString(lines[i])
-			endl()
-		}
-		putInt(11111111111)
-		endl()
-	}
+	// { // print line number
+	// 	putInt(lineNum)
+	// 	endl()
+	// }
+	// { // print lines
+	// 	for i := 0; i < lineNum; i++ {
+	// 		putString(lines[i])
+	// 		endl()
+	// 	}
+	// 	putInt(11111111111)
+	// 	endl()
+	// }
 	// id of input order
 	ids := make([]int, lineNum)
 	// buckets
@@ -360,17 +361,17 @@ func main() {
 		part2 := substring(lines[i], div1+1, div2)
 		part3 := substring(lines[i], div2+1, div3)
 		part4 := substring(lines[i], div3+1, len)
-		{ // print substrings
-			putString(part1)
-			putchar('!')
-			putString(part2)
-			putchar('!')
-			putString(part3)
-			putchar('!')
-			putString(part4)
-			putchar('~')
-			endl()
-		}
+		// { // print substrings
+		// 	putString(part1)
+		// 	putchar('!')
+		// 	putString(part2)
+		// 	putchar('!')
+		// 	putString(part3)
+		// 	putchar('!')
+		// 	putString(part4)
+		// 	putchar('~')
+		// 	endl()
+		// }
 		// get id and cred
 		id := getIntFromStrStart(part1)
 		ids[i] = id
@@ -390,26 +391,26 @@ func main() {
 		} else {
 			scores[id] = -1 // for empty string
 		}
-		{ // print id, cred, score
-			fmt.Println(" >> id, cred, score:", id, cred, scores[id])
-		}
+		// { // print id, cred, score
+		// 	fmt.Println(" >> id, cred, score:", id, cred, scores[id])
+		// }
 		// get logic
 		logic := getDisjunction(part3)
 		logics[id] = logic
-		{ // print logic
-			fmt.Println(" >> logic of", id, ":")
-			ii := 0
-			for logic[ii] != nil {
-				jj := 0
-				for logic[ii][jj] != -1 {
-					putInt(logic[ii][jj])
-					putchar(' ')
-					jj++
-				}
-				endl()
-				ii++
-			}
-		}
+		// { // print logic
+		// 	fmt.Println(" >> logic of", id, ":")
+		// 	ii := 0
+		// 	for logic[ii] != nil {
+		// 		jj := 0
+		// 		for logic[ii][jj] != -1 {
+		// 			putInt(logic[ii][jj])
+		// 			putchar(' ')
+		// 			jj++
+		// 		}
+		// 		endl()
+		// 		ii++
+		// 	}
+		// }
 	}
 	// calculate
 	for i := 0; i < lineNum; i++ {
@@ -463,7 +464,11 @@ func main() {
 			gpa += 100 * score * cred
 		}
 	}
-	gpa = gpa / ha
+	if gpa == 0 {
+		gpa = 0
+	} else {
+		gpa = gpa / ha
+	}
 	// output
 	result(gpa, ha, hc, cr, possible, possibleNum)
 	return

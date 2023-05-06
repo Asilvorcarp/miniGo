@@ -68,8 +68,8 @@ class Compiler {
     void genDefaultInit(ostream& os, string varType, string varMName) {
         if (varType == "i32") {
             // may include i64 in the future
-            os << "\tstore " << varType << " 0, " << increaseDim(varType) << " " << varMName
-               << "\n";
+            os << "\tstore " << varType << " 0, " << increaseDim(varType) << " "
+               << varMName << "\n";
         } else {
             // TODO maybe init array, ptr
             if (debug) {
@@ -503,7 +503,8 @@ class Compiler {
                     assert(false);
                 }
                 os << "\tstore " << valueTypeList[i] << " " << valueNameList[i]
-                   << ", " << increaseDim(valueTypeList[i]) << " " << varMName << "\n";
+                   << ", " << increaseDim(valueTypeList[i]) << " " << varMName
+                   << "\n";
             } else {
                 // get %arrayidx
                 string ptrName = varMName;
@@ -520,7 +521,8 @@ class Compiler {
                     }
                     string ptrValName = genId();
                     os << "\t" << ptrValName << " = load " << curType << ", "
-                       <<increaseDim( curType )<< " " << ptrName << ", align 4" << endl;
+                       << increaseDim(curType) << " " << ptrName << ", align 4"
+                       << endl;
                     string nextPtrName = genId();
                     string redCurType = reduceDim(curType);
                     os << "\t" << nextPtrName << " = getelementptr inbounds "
@@ -531,7 +533,8 @@ class Compiler {
                 }
                 // TODO assert valueType == curType, type checking
                 os << "\tstore " << valueTypeList[i] << " " << valueNameList[i]
-                   << ", " << increaseDim(valueTypeList[i]) << " " << ptrName << "\n";
+                   << ", " << increaseDim(valueTypeList[i]) << " " << ptrName
+                   << "\n";
             }
         }
     }
@@ -575,7 +578,8 @@ class Compiler {
                     }
                     string ptrValName = genId();
                     os << "\t" << ptrValName << " = load " << curType << ", "
-                       << increaseDim(curType) << " " << ptrName << ", align 4" << endl;
+                       << increaseDim(curType) << " " << ptrName << ", align 4"
+                       << endl;
                     string nextPtrName = genId();
                     string redCurType = reduceDim(curType);
                     os << "\t" << nextPtrName << " = getelementptr inbounds "
@@ -617,14 +621,22 @@ class Compiler {
             if (debug) {
                 clog << ">> done right" << endl;
             }
-            // TODO type checking, ptr (nil) matches to any ptr
-            // thus need to fix all type checking system
+            // assert leftType match rightType
+            if (typeMatch(leftType, rightType) == false) {
+                cerr << "compileExpr: type mismatch" << endl;
+                cerr << " - ast: " << *exp << endl;
+                assert(false);
+            }
+            // get type of bin
             string finalType = leftType;
-            if(leftType.find("*") != string::npos || leftType == "ptr") {
+            if (isPtr(leftType)) {
                 finalType = "ptr";
                 // assert op is EQ or NE
-                if(exp->op != BinExpAST::Op::EQ && exp->op != BinExpAST::Op::NE) {
-                    cerr << "compileExpr: ptr can only be compared with EQ or NE" << endl;
+                if (exp->op != BinExpAST::Op::EQ &&
+                    exp->op != BinExpAST::Op::NE) {
+                    cerr
+                        << "compileExpr: ptr can only be compared with EQ or NE"
+                        << endl;
                     assert(false);
                 }
             }
@@ -632,58 +644,69 @@ class Compiler {
                 case BinExpAST::Op::ADD:
                     os << "\t" << localName << " = "
                        << "add"
-                       << " i32 " << left << ", " << right << endl;
+                       << " " << finalType << " " << left << ", " << right
+                       << endl;
                     break;
                 case BinExpAST::Op::SUB:
                     os << "\t" << localName << " = "
                        << "sub"
-                       << " i32 " << left << ", " << right << endl;
+                       << " " << finalType << " " << left << ", " << right
+                       << endl;
                     break;
                 case BinExpAST::Op::MUL:
                     os << "\t" << localName << " = "
                        << "mul"
-                       << " i32 " << left << ", " << right << endl;
+                       << " " << finalType << " " << left << ", " << right
+                       << endl;
                     break;
                 case BinExpAST::Op::DIV:
                     os << "\t" << localName << " = "
                        << "sdiv"
-                       << " i32 " << left << ", " << right << endl;
+                       << " " << finalType << " " << left << ", " << right
+                       << endl;
                     break;
                 case BinExpAST::Op::MOD:
                     os << "\t" << localName << " = "
                        << "srem"
-                       << " i32 " << left << ", " << right << endl;
+                       << " " << finalType << " " << left << ", " << right
+                       << endl;
                     break;
                     // https://llvm.org/docs/LangRef.html#icmp-instruction
                 case BinExpAST::Op::EQ:
                     os << "\t" << localName << " = "
                        << "icmp eq"
-                       << " i32 " << left << ", " << right << endl;
+                       << " " << finalType << " " << left << ", " << right
+                       << endl;
                     break;
                 case BinExpAST::Op::NE:
                     os << "\t" << localName << " = "
                        << "icmp ne"
-                       << " i32 " << left << ", " << right << endl;
+                       << " " << finalType << " " << left << ", " << right
+                       << endl;
                     break;
                 case BinExpAST::Op::LT:
                     os << "\t" << localName << " = "
                        << "icmp slt"
-                       << " i32 " << left << ", " << right << endl;
+                       << " " << finalType << " " << left << ", " << right
+                       << endl;
                     break;
                 case BinExpAST::Op::LE:
                     os << "\t" << localName << " = "
                        << "icmp sle"
-                       << " i32 " << left << ", " << right << endl;
+                       << " " << finalType << " " << left << ", " << right
+                       << endl;
                     break;
                 case BinExpAST::Op::GT:
                     os << "\t" << localName << " = "
                        << "icmp sgt"
-                       << " i32 " << left << ", " << right << endl;
+                       << " " << finalType << " " << left << ", " << right
+                       << endl;
                     break;
                 case BinExpAST::Op::GE:
                     os << "\t" << localName << " = "
                        << "icmp sge"
-                       << " i32 " << left << ", " << right << endl;
+                       << " " << finalType << " " << left << ", " << right
+                       << endl;
                     break;
                 case BinExpAST::Op::AND:
                     os << "\t" << localName << " = "
@@ -902,10 +925,22 @@ class Compiler {
     // increase dimension of array type
     // support only ptr now (not like [5 x [4 x i32]])
     string increaseDim(string t) {
-        if(t=="ptr"){
+        if (t == "ptr") {
             return "ptr";
         }
         return t + "*";
+    }
+
+    // whether a type is a pointer type
+    bool isPtr(string t) { return t.find("*") != string::npos || t == "ptr"; }
+
+    // whether two types matches
+    // TODO need to fix all type checking system
+    bool typeMatch(string t1, string t2) {
+        if (t1 == t2) return true;
+        // TODO maybe one side need to be "ptr"
+        if (isPtr(t1) && isPtr(t2)) return true;
+        return false;
     }
 
     string inferType(const pAST& _expr) {
