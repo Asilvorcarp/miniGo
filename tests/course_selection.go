@@ -230,16 +230,54 @@ func strcmp(s1 []int, s2 []int) int {
 	return s1[i] - s2[i]
 }
 
-// get the hash value of a string
-// string length should be less than 5
-func hash(s []int) int {
+// encode string to int, string is only made of [0-9a-zA-Z]
+// max value: 62**4 = 14776336
+func enc(s []int) int {
+	res := 0
 	i := 0
-	h := 0
 	for s[i] != 0 {
-		h = h*31 + s[i]
+		res *= 62
+		if s[i] >= '0' && s[i] <= '9' {
+			res += s[i] - '0'
+		}
+		if s[i] >= 'a' && s[i] <= 'z' {
+			res += s[i] - 'a' + 10
+		}
+		if s[i] >= 'A' && s[i] <= 'Z' {
+			res += s[i] - 'A' + 36
+		}
 		i++
 	}
-	return h
+	return res
+}
+
+// decode int to string
+func dec(code int) []int {
+	res := make([]int, 5)
+	if code == 0 {
+		res[0] = '0'
+		res[1] = 0
+		return res
+	}
+	len := 0
+	tmp := code
+	for tmp > 0 {
+		tmp /= 62
+		len++
+	}
+	res[len] = 0
+	for i := len - 1; i >= 0; i-- {
+		mod := code % 62
+		if mod < 10 {
+			res[i] = '0' + mod
+		} else if mod < 36 {
+			res[i] = 'a' + (mod - 10)
+		} else {
+			res[i] = 'A' + (mod - 36)
+		}
+		code /= 62
+	}
+	return res
 }
 
 // end line
@@ -349,7 +387,7 @@ func putIndentCC(ind int, x int, c1 int, c2 int) {
 // 	score int
 // }
 
-// assert all course is "cNum"
+// assert all course is alphabet and digit
 // 512 for line number
 // 512 for line length
 // 5 for course name
@@ -388,9 +426,9 @@ func main() {
 	// id of input order
 	ids := make([]int, lineNum)
 	// buckets
-	logics := make([][][]int, 512)
-	creds := make([]int, 512)
-	scores := make([]int, 512)
+	logics := make([][][]int, 14776340)
+	creds := make([]int, 14776340)
+	scores := make([]int, 14776340)
 	for i := 0; i < 512; i++ {
 		scores[i] = -2 // -2 for not set
 	}
@@ -427,7 +465,7 @@ func main() {
 		// 	endl()
 		// }
 		// get id and cred
-		id := getIntFromStrStart(part1)
+		id := enc(part1)
 		ids[i] = id
 		cred := getIntFromStrStart(part2)
 		creds[id] = cred
