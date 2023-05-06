@@ -54,12 +54,12 @@ CLANG_LINK = clang build/$1.o.ll -o build/$1.out
 built_tests:
 	@for test_file in tests/*.go; do \
         base_name=$$(basename $$test_file .go); \
-        echo "Running test: $$base_name"; \
+        echo " > Running test: $$base_name"; \
         build/miniGo.out $$test_file -o build/$$base_name.o.ll; \
         $(call CLANG_LINK,$$base_name); \
         for input_file in tests/$$base_name/*.in; do \
-            echo "Input file: $$input_file"; \
-            echo "Output:"; \
+            echo " - Input file: $$input_file"; \
+            echo " - Output:"; \
             ./build/$$base_name.out < $$input_file || exit 1; \
         done; \
     done
@@ -73,7 +73,7 @@ in: main
 	@cat debug/test.temp.in | build/main.out
 
 compareResult : in
-	cat debug/test.temp.in | go run ./debug/main.go ./debug/_runtime.go > right.o.txt
+	cat debug/test.temp.in | go run ./debug/main.go ./debug/Runtime.go > right.o.txt
 	cat debug/test.temp.in | build/main.out > my.o.txt
 
 # Cross compile for windows x86_64 (needs to be statically linked)

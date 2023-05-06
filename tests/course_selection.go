@@ -177,6 +177,7 @@ func putIntW(n int, width int) {
 
 // fmt.Printf("%s", s)
 func putString(s []int) {
+	// fmt.Println("putString: ", s)
 	i := 0
 	for s[i] != 0 {
 		putchar(s[i])
@@ -233,6 +234,7 @@ func strcmp(s1 []int, s2 []int) int {
 // encode string to int, string is only made of [0-9a-zA-Z]
 // max value: 62**4 = 14776336
 func enc(s []int) int {
+	// fmt.Println("enc", s)
 	res := 0
 	i := 0
 	for s[i] != 0 {
@@ -248,6 +250,7 @@ func enc(s []int) int {
 		}
 		i++
 	}
+	// fmt.Println("enc res", res)
 	return res
 }
 
@@ -270,9 +273,11 @@ func dec(code int) []int {
 		mod := code % 62
 		if mod < 10 {
 			res[i] = '0' + mod
-		} else if mod < 36 {
+		}
+		if 10 <= mod && mod < 36 {
 			res[i] = 'a' + (mod - 10)
-		} else {
+		}
+		if mod >= 36 {
 			res[i] = 'A' + (mod - 36)
 		}
 		code /= 62
@@ -294,31 +299,61 @@ func putSpace(n int) {
 
 // print n/100 as float with 1 decimal and round up
 func putGpa(n int) {
-	putInt(n / 100)
+	// integer part
+	integer := n / 100
 	// one decimal
-	putchar('.')
 	d := n % 100 / 10
 	// round up
 	if n%10 >= 5 {
 		d++
 	}
+	// carry
+	if d == 10 {
+		integer++
+		d = 0
+	}
+	putInt(integer)
+	putchar('.')
 	putInt(d)
 }
 
-// get a conjunction from string, start from index x, like "c1,c2" to [1,2,-1]
+// get a conjunction from string, like "c1,a2" to [enc("c1"), enc("a2"), -1]
 // get all int in string actually
-func getConjunction(s []int, x int) []int {
+func getConjunction(s []int) []int {
 	ret := make([]int, 10)
-	idx := 0
-	res := getIntFromString(s, x)
-	ret[idx] = res[0]
-	idx++
-	for res[1] != -1 {
-		res = getIntFromString(s, res[1])
-		ret[idx] = res[0]
-		idx++
+
+	// empty string
+	if s[0] == 0 {
+		ret[0] = -1
+		return ret
 	}
-	// fmt.Println("getConjunction returning ", ret)
+	idx := 0
+	total := length(s)
+	start := 0
+	// do (one or more)
+	end := findChar(s, ',', start)
+	if end == -1 {
+		end = total
+	}
+	sub := substring(s, start, end)
+	res := enc(sub)
+	ret[idx] = res
+	idx++
+	start = end + 1
+	// while
+	for start != total+1 {
+		end := findChar(s, ',', start)
+		if end == -1 {
+			end = total
+		}
+		sub := substring(s, start, end)
+		res := enc(sub)
+		ret[idx] = res
+		idx++
+		start = end + 1
+	}
+	ret[idx] = -1
+
 	return ret
 }
 
@@ -335,23 +370,24 @@ func getDisjunction(s []int) [][]int {
 	idx := 0
 	total := length(s)
 	start := 0
-	// one or more conjunction
+	// do (one or more)
 	end := findChar(s, ';', start)
 	if end == -1 {
 		end = total
 	}
 	sub := substring(s, start, end)
-	res := getConjunction(sub, 0)
+	res := getConjunction(sub)
 	ret[idx] = res
 	idx++
 	start = end + 1
+	// while
 	for start != total+1 {
 		end := findChar(s, ';', start)
 		if end == -1 {
 			end = total
 		}
 		sub := substring(s, start, end)
-		res := getConjunction(sub, 0)
+		res := getConjunction(sub)
 		ret[idx] = res
 		idx++
 		start = end + 1
@@ -650,8 +686,8 @@ func result(gpa int, ha int, hc int, cr int, possible []int, possibleNum int) {
 	}
 	for i := 0; i < possibleNum; i++ {
 		putSpace(2)
-		putchar('c')
-		putInt(possible[i])
+		// fmt.Println("possible[i] = ", possible[i])
+		putString(dec(possible[i]))
 		endl()
 	}
 	return

@@ -323,7 +323,7 @@ More detailed test cases are in `debug/`, which are used for debugging the compi
 To compile and run with go official compiler for comparison:
 
 ```bash
-go run debug/main.go debug/_runtime.go
+go run debug/main.go debug/Runtime.go
 ```
 
 Explanation on the test cases:
