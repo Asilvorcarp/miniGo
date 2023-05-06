@@ -991,6 +991,7 @@ class Compiler {
                 cerr << "inferType: function " << exp->funcName << " undefined"
                      << endl;
                 assert(false);
+                return "";
             }
         } else if (expr->type() == TType::LValT) {
             auto exp = reinterpret_cast<LValAST*>(expr);
@@ -1016,6 +1017,8 @@ class Compiler {
         } else {
             cerr << "inferType: unknown type of ExpAST" << endl;
             assert(false);
+            return "";
         }
+        return "";
     }
 };

@@ -63,7 +63,7 @@ func partition(arr []int, left int, right int) int {
 }
 
 func main() {
-	arr := make([]int, 1024)
+	arr := make([]int, 10005)
 	var n int
 	n = getInt()
 	for i := 0; i < n; i++ {
