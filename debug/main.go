@@ -1,20 +1,21 @@
 package main
 
-import (
-	"fmt"
-)
+// import (
+// 	"fmt"
+// )
 
-func getchar() int {
-	var n byte
-	fmt.Scanf("%c", &n)
-	return int(n)
-}
+// func getchar() int {
+// 	var n byte
+// 	fmt.Scanf("%c", &n)
+// 	return int(n)
+// }
 
-func putchar(n int) {
-	fmt.Printf("%c", n)
-}
+// func putchar(n int) {
+// 	fmt.Printf("%c", n)
+// }
 
 // cat debug/course_selection.temp.in | go run debug/course_selection.go
+var debug int = 0
 
 // fmt.Scanf("%d", &n)
 func getInt() int {
@@ -223,13 +224,14 @@ func substring(s []int, start int, end int) []int {
 // print n/100 as float with 1 decimal and round up
 func putGpa(n int) {
 	putInt(n / 100)
+	// one decimal
 	putchar('.')
+	d := n % 100 / 10
 	// round up
 	if n%10 >= 5 {
-		putInt(n%100/10 + 1)
-	} else {
-		putInt(n % 100 / 10)
+		d++
 	}
+	putInt(d)
 }
 
 // end line
@@ -297,6 +299,26 @@ func getDisjunction(s []int) [][]int {
 	}
 	// fmt.Println("getDisjunction returning ", ret)
 	return ret
+}
+
+func putIndent(indent int) {
+	for i := 0; i < indent; i++ {
+		putSpace(4)
+	}
+}
+
+// for debug info output
+func putIndentCC(ind int, x int, c1 int, c2 int) {
+	if debug == 1 {
+		putIndent(ind)
+		if c1 == '}' {
+			putchar(c1)
+			putInt(x)
+			putchar(c2)
+			return
+		}
+		putIntCC(x, c1, c2)
+	}
 }
 
 // type cou struct {
@@ -372,17 +394,17 @@ func main() {
 		part2 := substring(lines[i], div1+1, div2)
 		part3 := substring(lines[i], div2+1, div3)
 		part4 := substring(lines[i], div3+1, len)
-		{ // print substrings
-			putString(part1)
-			putchar('!')
-			putString(part2)
-			putchar('!')
-			putString(part3)
-			putchar('!')
-			putString(part4)
-			putchar('~')
-			endl()
-		}
+		// { // print substrings
+		// 	putString(part1)
+		// 	putchar('!')
+		// 	putString(part2)
+		// 	putchar('!')
+		// 	putString(part3)
+		// 	putchar('!')
+		// 	putString(part4)
+		// 	putchar('~')
+		// 	endl()
+		// }
 		// get id and cred
 		id := getIntFromStrStart(part1)
 		ids[i] = id
@@ -391,109 +413,134 @@ func main() {
 		// get score
 		if part4[0] == 'A' {
 			scores[id] = 4
-		} else if part4[0] == 'B' {
+		}
+		if part4[0] == 'B' {
 			scores[id] = 3
-		} else if part4[0] == 'C' {
+		}
+		if part4[0] == 'C' {
 			scores[id] = 2
-		} else if part4[0] == 'D' {
+		}
+		if part4[0] == 'D' {
 			scores[id] = 1
-		} else if part4[0] == 'F' {
+		}
+		if part4[0] == 'F' {
 			scores[id] = 0
-		} else {
+		}
+		if part4[0] == 0 {
 			scores[id] = -1 // for empty string
 		}
 		// { // print id, cred, score
-		// 	fmt.Println(" >> id, cred, score:", id, cred, scores[id])
+		// 	putIntCC(id, 'I', '\n')
+		// 	putIntCC(cred, 'C', '\n')
+		// 	putIntCC(scores[id], 'S', '\n')
 		// }
 		// get logic
 		logic := getDisjunction(part3)
 		logics[id] = logic
-		{ // print logic
-			putSpace(5)
-			putchar('-')
-			putchar(' ')
-			putInt(id)
-			putchar(' ')
-			putchar('-')
-			endl()
-			ii := 0
-			for logic[ii] != nil {
-				jj := 0
-				for logic[ii][jj] != -1 {
-					putInt(logic[ii][jj])
-					putchar(' ')
-					jj++
-				}
-				endl()
-				ii++
-			}
-		}
+		// { // print logic
+		// 	putSpace(5)
+		// 	putchar('-')
+		// 	putchar(' ')
+		// 	putInt(id)
+		// 	putchar(' ')
+		// 	putchar('-')
+		// 	endl()
+		// 	ii := 0
+		// 	for logic[ii] != nil {
+		// 		jj := 0
+		// 		for logic[ii][jj] != -1 {
+		// 			putInt(logic[ii][jj])
+		// 			putchar(' ')
+		// 			jj++
+		// 		}
+		// 		endl()
+		// 		ii++
+		// 	}
+		// }
 	}
-	putchar('!')
-	endl()
 	// calculate
 	for idx := 0; idx < lineNum; idx++ {
-		putIntCC(430, 'F', ' ')
+		putIndentCC(1, 430, '{', '\n')
 		curId := ids[idx]
 		curCred := creds[curId]
 		curScore := scores[curId]
 		curLogic := logics[curId]
 		if curScore == -1 { // empty curScore
+			putIndentCC(2, 454, '{', '\n')
 			cr = cr + curCred
-		} else if curScore == 0 { // F
+			putIndentCC(2, 454, '{', '\n')
+		}
+		if curScore == 0 { // F
+			putIndentCC(2, 458, '}', '\n')
 			ha = ha + curCred
 			cr = cr + curCred
-		} else { // ABCD
+			putIndentCC(2, 458, '{', '\n')
+		}
+		if curScore > 0 { // ABCD
+			putIndentCC(2, 463, '}', '\n')
 			ha = ha + curCred
 			hc = hc + curCred
+			putIndentCC(2, 463, '}', '\n')
 		}
 		// check prerequisites
 		ii := 0
 		// disjunction
 		boolDisj := 0
+		boolConj := 1
 		for curLogic[ii] != nil {
-			putIntCC(449, 'F', ' ')
+			putIndentCC(2, 489, '{', '\n')
 			jj := 0
 			// conjunction
-			boolConj := 1
+			boolConj = 1
 			for curLogic[ii][jj] != -1 {
-				putIntCC(454, 'F', ' ')
-				endl()
+				putIndentCC(3, 454, '{', '\n')
 				id2 := curLogic[ii][jj]
 				score2 := scores[id2]
-				if score2 <= 0 { //
+				if score2 <= 0 {
+					putIndentCC(4, 465, '{', '\n')
 					// not set or empty or F
 					boolConj = 0
 					// break // TODO
+					putIndentCC(4, 465, '}', '\n')
 				}
 				jj++
+				putIndentCC(3, 454, '}', '\n')
 			}
 			if boolConj == 1 {
+				putIndentCC(3, 488, '{', '\n')
 				boolDisj = 1
 				// break // TODO
+				putIndentCC(3, 488, '}', '\n')
 			}
 			ii++
+			putIndentCC(2, 489, '}', '\n')
 		}
 		if curLogic[0] == nil {
+			putIndentCC(2, 491, '{', '\n')
 			// no prerequisite
 			boolDisj = 1
+			putIndentCC(2, 491, '}', '\n')
 		}
 		if boolDisj == 1 && curScore <= 0 {
+			putIndentCC(2, 497, '{', '\n')
 			possible[possibleNum] = curId
 			possibleNum++
+			putIndentCC(2, 497, '}', '\n')
 		}
 		// calculate the numerator of GPA * 100
 		if curScore > 0 {
+			putIndentCC(2, 502, '{', '\n')
 			gpa = gpa + 100*curScore*curCred
-			{ // print gpa now
-				putchar('G')
-				putInt(gpa)
-				endl()
-			}
+			// { // print gpa now
+			// 	putIndent(2)
+			// 	putchar('G')
+			// 	putInt(gpa)
+			// 	endl()
+			// }
+			putIndentCC(2, 502, '}', '\n')
 		}
+		putIndentCC(1, 430, '}', '\n')
 	}
-	putchar('!')
-	endl()
 	if gpa == 0 {
 		gpa = 0
 	} else {

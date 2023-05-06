@@ -79,25 +79,35 @@ class Compiler {
     }
 
     void genInit(ostream& os, CompUnitAST* file) {
+        // the function to init globals
         os << "define void @" << file->packageName << "_init() {\n";
 
-        // TODO support multiple globals in one line
         for (auto& g : file->Globals) {
-            string localName = "0";
-            if (g->initVals->size() > 0) {
-                localName = compileExpr(os, g->initVals->at(0));
-            }
-            string varName;
-            auto obj = scope->Lookup(g->idents->at(0)).second;
-            if (obj != nullptr) {
-                varName = obj->MangledName;
-            } else {
-                cerr << "error: global variable undefined" << endl;
-                assert(false);
-            }
-            auto varType = obj->Node->info();
-            if (localName == "0") {
-                genDefaultInit(os, varType, varName);
+            int idNum = g->idents->size();
+            int valNum = g->initVals->size();
+            for (int i = 0; i < idNum; i++) {
+                auto obj = scope->Lookup(g->idents->at(i)).second;
+                if (obj == nullptr) {
+                    cerr << "error: global variable undefined" << endl;
+                    assert(false);
+                }
+                string varType = obj->Node->info();
+                string mangledName = obj->MangledName;
+                // assert valNum == 0 || valNum == idNum;
+                if (valNum != 0 && valNum != idNum) {
+                    cerr << "error: global id and init value number not match"
+                         << endl;
+                    assert(false);
+                }
+                if (valNum > 0) {
+                    // init with val
+                    auto valLocal = compileExpr(os, g->initVals->at(i));
+                    os << "\tstore " << varType << " " << valLocal << ", "
+                       << increaseDim(varType) << " " << mangledName << "\n";
+                } else {
+                    // init with default val (zero val)
+                    genDefaultInit(os, varType, mangledName);
+                }
             }
         }
         os << "\tret void\n";
@@ -109,25 +119,32 @@ class Compiler {
         enterScope();
 
         // register global vars
+        // note: initialized in genInit()
         for (auto& g : file->Globals) {
             auto ast = g.get();  // VarSpecAST
             // get mangled name
             stringstream ss;
-            ss << "@" << file->packageName << "_" << g->idents->at(0);
-            string mangledName = ss.str();
-            // TODO a lot todo here! not implemented yet
-            cerr << "error: global variable not implemented yet" << endl;
-            assert(false);
-            {
-                // string varType = g->info();
-                // scope->Insert(new Object(g->idents->at(0), mangledName, g.get()));
-                // if (varType == "i32") {
-                //     os << mangledName << " = global " << varType << " 0\n";
-                // } else {
-                //     // TODO test this
-                //     os << mangledName << " = common global " << varType
-                //        << " zeroinitializer\n";
-                // }
+            int idNum = ast->idents->size();
+            string varType = g->info();
+            if (varType == "infer") {
+                cerr << "error: global var type not specified" << endl;
+                assert(false);
+            }
+            for (int i = 0; i < idNum; i++) {
+                string id = ast->idents->at(i);
+                ss << "@" << file->packageName << "_" << id;
+                string mangledName = ss.str();
+                scope->Insert(new Object(id, mangledName, ast));
+                if (isPtr(varType)) {
+                    cerr << "error: global var for array not implemented yet"
+                         << endl;
+                    assert(false);
+                    // TODO for array
+                    // os << mangledName << " = common global " << varType
+                    //    << " zeroinitializer\n";
+                } else {
+                    os << mangledName << " = global " << varType << " 0\n";
+                }
             }
         }
         if (file->Globals.size() > 0) {
@@ -624,6 +641,8 @@ class Compiler {
             // assert leftType match rightType
             if (typeMatch(leftType, rightType) == false) {
                 cerr << "compileExpr: type mismatch" << endl;
+                cerr << " - left: " << leftType << ", right: " << rightType
+                     << endl;
                 cerr << " - ast: " << *exp << endl;
                 assert(false);
             }
