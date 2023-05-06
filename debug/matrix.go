@@ -14,6 +14,8 @@ package main
 // 	fmt.Printf("%c", n)
 // }
 
+// // cat debug/matrix.temp.in | go run debug/matrix.go
+
 // fmt.Scanf("%d", &n)
 func getInt() int {
 	sign := 1
@@ -62,7 +64,7 @@ func getString(maxLen int, stop []int) []int {
 func putInt(n int) {
 	if n < 0 {
 		putchar('-')
-		// n = -n
+		n = -n
 	}
 	if n/10 != 0 {
 		putInt(n / 10)
