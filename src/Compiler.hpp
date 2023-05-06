@@ -67,12 +67,13 @@ class Compiler {
 
     void genDefaultInit(ostream& os, string varType, string varMName) {
         if (varType == "i32") {
+            // may include i64 in the future
             os << "\tstore " << varType << " 0, " << varType << "* " << varMName
                << "\n";
         } else {
             // TODO maybe init array, ptr
             if (debug) {
-                cerr << "info: global var not inited - " << varMName << endl;
+                clog << "info: var not inited - " << varMName << endl;
             }
         }
     }
@@ -109,17 +110,24 @@ class Compiler {
 
         // register global vars
         for (auto& g : file->Globals) {
+            auto ast = g.get();  // VarSpecAST
+            // get mangled name
             stringstream ss;
             ss << "@" << file->packageName << "_" << g->idents->at(0);
             string mangledName = ss.str();
-            string varType = g->info();
-            scope->Insert(new Object(g->idents->at(0), mangledName, g.get()));
-            if (varType == "i32") {
-                os << mangledName << " = global " << varType << " 0\n";
-            } else {
-                // TODO test this
-                os << mangledName << " = common global " << varType
-                   << " zeroinitializer\n";
+            // TODO a lot todo here! not implemented yet
+            cerr << "error: global variable not implemented yet" << endl;
+            assert(false);
+            {
+                // string varType = g->info();
+                // scope->Insert(new Object(g->idents->at(0), mangledName, g.get()));
+                // if (varType == "i32") {
+                //     os << mangledName << " = global " << varType << " 0\n";
+                // } else {
+                //     // TODO test this
+                //     os << mangledName << " = common global " << varType
+                //        << " zeroinitializer\n";
+                // }
             }
         }
         if (file->Globals.size() > 0) {
@@ -226,21 +234,43 @@ class Compiler {
         }
         stringstream ss;
         if (stmt->type() == TType::VarSpecT) {
-            // TODO now only support one spec
-            auto stmt0 = reinterpret_cast<VarSpecAST*>(stmt);
-            string localName = "0";  // default init val
-            if (stmt0->initVals->size() > 0) {
-                localName = compileExpr(os, (*stmt0->initVals)[0]);
+            auto stm = reinterpret_cast<VarSpecAST*>(stmt);
+            // assert idNum == valNum or valNum == 0
+            int idNum = stm->idents->size();
+            int valNum = stm->initVals->size();
+            if (idNum != valNum && valNum != 0) {
+                cerr
+                    << "compileStmt: VarSpec ids and init vals number not match"
+                    << endl;
+                assert(false);
             }
-            auto firstId = (*stmt0->idents)[0];
-            ss << "%local_" << firstId << "." << varSuffix++;
-            auto mangledName = ss.str();
-            scope->Insert(new Object(firstId, mangledName, stmt0));
-            auto varType = stmt0->info();
-            os << "\t" << mangledName << " = alloca " << varType
-               << ", align 4\n";
-            if (localName == "0") {
-                genDefaultInit(os, varType, mangledName);
+            for (int i = 0; i < idNum; i++) {
+                string id = stm->idents->at(i);
+                // get mangled name
+                ss << "%local_" << id << "." << varSuffix++;
+                auto mangledName = ss.str();
+                // get var type
+                auto varType = stm->info();
+                if (varType == "infer") {
+                    varType = inferType(stm->initVals->at(i));
+                }
+                // insert obj into scope with LValAST node
+                auto node = new LValAST(id, varType);
+                scope->Insert(new Object(id, mangledName, node));
+                // alloc local space to store the var,
+                // and mangledName is the ptr to this place
+                os << "\t" << mangledName << " = alloca " << varType
+                   << ", align 4\n";
+                // init
+                if (valNum > 0) {
+                    // init with val
+                    auto valLocal = compileExpr(os, stm->initVals->at(i));
+                    os << "\tstore " << varType << " " << valLocal << ", "
+                       << varType << "* " << mangledName << "\n";
+                } else {
+                    // init with default val (zero val)
+                    genDefaultInit(os, varType, mangledName);
+                }
             }
         } else if (stmt->type() == TType::ShortVarDeclT) {
             compileStmt_assign(os, _stmt);
@@ -376,16 +406,15 @@ class Compiler {
             auto stmt4 = reinterpret_cast<ExpStmtAST*>(stmt);
             compileExpr(os, stmt4->exp);
         } else if (stmt->type() == TType::ReturnStmtT) {
-            auto stmt5 = reinterpret_cast<ReturnStmtAST*>(stmt);
-            // TODO now only support return int or void
-            if (stmt5->exp != nullptr) {
-                auto ret = compileExpr(os, stmt5->exp);
-                os << "\tret i32 " << ret << "\n";
-            } else {
-                // return 0:
-                // os << "\tret i32 0\n";
-                // return void:
+            auto stm = reinterpret_cast<ReturnStmtAST*>(stmt);
+            if (stm->info() == "void") {
                 os << "\tret void\n";
+            } else {
+                // info() == "infer"
+                // TODO type check: return type should be the same as function
+                auto ret = compileExpr(os, stm->exp);
+                auto retType = inferType(stm->exp);
+                os << "\tret " << retType << " " << ret << "\n";
             }
         } else if (stmt->type() == TType::BranchStmtT) {
             // TODO
@@ -588,80 +617,67 @@ class Compiler {
                     os << "\t" << localName << " = "
                        << "add"
                        << " i32 " << left << ", " << right << endl;
-                    return localName;
                     break;
                 case BinExpAST::Op::SUB:
                     os << "\t" << localName << " = "
                        << "sub"
                        << " i32 " << left << ", " << right << endl;
-                    return localName;
                     break;
                 case BinExpAST::Op::MUL:
                     os << "\t" << localName << " = "
                        << "mul"
                        << " i32 " << left << ", " << right << endl;
-                    return localName;
                     break;
                 case BinExpAST::Op::DIV:
                     os << "\t" << localName << " = "
-                       << "div"
+                       << "sdiv"
                        << " i32 " << left << ", " << right << endl;
-                    return localName;
                     break;
                 case BinExpAST::Op::MOD:
                     os << "\t" << localName << " = "
                        << "srem"
                        << " i32 " << left << ", " << right << endl;
-                    return localName;
                     break;
                     // https://llvm.org/docs/LangRef.html#icmp-instruction
                 case BinExpAST::Op::EQ:
                     os << "\t" << localName << " = "
                        << "icmp eq"
                        << " i32 " << left << ", " << right << endl;
-                    return localName;
                     break;
                 case BinExpAST::Op::NE:
                     os << "\t" << localName << " = "
                        << "icmp ne"
                        << " i32 " << left << ", " << right << endl;
-                    return localName;
                     break;
                 case BinExpAST::Op::LT:
                     os << "\t" << localName << " = "
                        << "icmp slt"
                        << " i32 " << left << ", " << right << endl;
-                    return localName;
                     break;
                 case BinExpAST::Op::LE:
                     os << "\t" << localName << " = "
                        << "icmp sle"
                        << " i32 " << left << ", " << right << endl;
-                    return localName;
                     break;
                 case BinExpAST::Op::GT:
                     os << "\t" << localName << " = "
                        << "icmp sgt"
                        << " i32 " << left << ", " << right << endl;
-                    return localName;
                     break;
                 case BinExpAST::Op::GE:
                     os << "\t" << localName << " = "
                        << "icmp sge"
                        << " i32 " << left << ", " << right << endl;
-                    return localName;
                     break;
                 case BinExpAST::Op::AND:
                     os << "\t" << localName << " = "
                        << "and"
                        << " i1 " << left << ", " << right << endl;
-                    return localName;
                     break;
                 case BinExpAST::Op::OR:
                     os << "\t" << localName << " = "
                        << "or"
                        << " i1 " << left << ", " << right << endl;
-                    return localName;
                     break;
                 default:
                     cerr << "compileExpr: unknown type of BinExpAST" << endl;
@@ -671,6 +687,7 @@ class Compiler {
             if (debug) {
                 clog << ">> done bin self" << endl;
             }
+            return localName;
         } else if (expr->type() == TType::UnaryExpT) {
             auto exp = reinterpret_cast<UnaryExpAST*>(expr);
             if (exp->op == '-') {
@@ -777,7 +794,7 @@ class Compiler {
                      << " undefined" << endl;
                 assert(false);
             }
-            auto funcDefAST = dynamic_cast<FuncDefAST*>(obj->Node);
+            auto funcDefAST = reinterpret_cast<FuncDefAST*>(obj->Node);
             int argNum = exp->argList->size();
             // get return type and param types
             auto paramTypes = funcDefAST->getParamTypes();
@@ -808,9 +825,10 @@ class Compiler {
                     cerr << "compileExpr: type mismatch in function call - "
                          << funcName << endl;
                     // show the arg type and param type
-                    cerr << " - arg \"" << argNames[i] << "\" has type \""
-                         << argTypes[i] << "\", but expected \""
-                         << paramTypes->at(i) << "\"." << endl;
+                    cerr << " - arg has type \"" << argTypes[i]
+                         << "\", but expected \"" << paramTypes->at(i) << "\"."
+                         << endl;
+                    cerr << " - arg AST: " << *exp->argList->at(i) << endl;
                     assert(false);
                 }
                 os << paramTypes->at(i) << " " << argNames[i];
@@ -886,7 +904,7 @@ class Compiler {
             auto exp = reinterpret_cast<CallExpAST*>(expr);
             auto obj = scope->Lookup(exp->funcName).second;
             if (obj != nullptr) {
-                auto funcDefAST = dynamic_cast<FuncDefAST*>(obj->Node);
+                auto funcDefAST = reinterpret_cast<FuncDefAST*>(obj->Node);
                 return funcDefAST->getRetType();
             } else {
                 cerr << "inferType: function " << exp->funcName << " undefined"
@@ -908,6 +926,9 @@ class Compiler {
             }
             return reduceDim(baseType, exp->indexList->size());
         } else if (expr->type() == TType::MakeExpT) {
+            return expr->info();
+        } else if (expr->type() == TType::ArrayExpT) {
+            // always specified in code, like []int{1, 2, 3}
             return expr->info();
         } else {
             cerr << "inferType: unknown type of ExpAST" << endl;

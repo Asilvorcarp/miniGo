@@ -33,21 +33,23 @@ func getInt() int {
 	return n
 }
 
-func inArray(n int, arr []int, len int) int {
-	for i := 0; i < len; i++ {
-		if arr[i] == n {
+// whether char c is in string s
+func inString(c int, s []int) int {
+	cur := s[0]
+	for cur != 0 {
+		if cur == c {
 			return 1
 		}
 	}
 	return 0
 }
 
-// get string before any stop char
-func getString(maxLen int, stopChars []int) []int {
+// get string before any char in the stop string
+func getString(maxLen int, stop []int) []int {
 	s := make([]int, maxLen)
 	i := 0
 	c := getchar()
-	for inArray(c, stopChars) == 0 && i < maxLen {
+	for inString(c, stop) == 0 && i < maxLen {
 		s[i] = c
 		i++
 		c = getchar()
@@ -113,9 +115,18 @@ func main() {
 	bRows, bCols := getInt(), getInt()
 	matrixB := parseMatrix(bRows, bCols)
 
+	// "Incompatible Dimensions\n" as int array
+	var err = []int{73, 110, 99, 111, 109, 112, 97, 116, 105, 98, 108, 101, 32, 68, 105, 109, 101, 110, 115, 105, 111, 110, 115, 10, 0}
+
+	// error if dim not match
+	if aCols != bRows {
+		putString(err)
+		return
+	}
+
 	result := calculateProduct(matrixA, matrixB, aRows, aCols, bRows, bCols)
 
-	outputMatrix(result)
+	outputMatrix(result, aRows, bCols)
 }
 
 func parseMatrix(rows int, cols int) [][]int {
@@ -129,15 +140,7 @@ func parseMatrix(rows int, cols int) [][]int {
 	return matrix
 }
 
-// "Incompatible Dimensions\n" as int array
-var err = []int{73, 110, 99, 111, 109, 112, 97, 116, 105, 98, 108, 101, 32, 68, 105, 109, 101, 110, 115, 105, 111, 110, 115, 10, 0}
-
 func calculateProduct(matrixA [][]int, matrixB [][]int, ar int, ac int, br int, bc int) [][]int {
-	// error if dim not match a.k.a. ac != br
-	if ac != br {
-		putString(err)
-		return
-	}
 	result := make([][]int, ar)
 	for i := 0; i < ar; i++ {
 		row := make([]int, bc)
@@ -158,6 +161,6 @@ func outputMatrix(matrix [][]int, rows int, cols int) {
 		for j := 0; j < cols; j++ {
 			putIntW(matrix[i][j], 10)
 		}
-		putchar('\n')
+		putchar(10)
 	}
 }
