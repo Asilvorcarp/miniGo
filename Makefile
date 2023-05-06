@@ -1,10 +1,10 @@
-.PHONY : all clean
+.PHONY : all clean debug
 
 all: miniGo
 
 CFLAGS = -std=c++20 -Isrc -Ibuild
 # show bison parsing trace
-DEBUGFLAG = -DYYDEBUG
+DEBUGFLAG = -DYYDEBUG -g -O0
 
 # ensure debug/main.go for ll
 # ensure debug/test.temp.in for test
@@ -31,6 +31,9 @@ debugLL:
 	clang -S -emit-llvm src/runtime.c -o build/runtime.o.ll
 	@echo "--- Build Main LL ---"
 	build/miniGo.out debug/main.go -o debug/main.o.ll
+
+gdb:
+	gdb --args build/miniGo.out debug/main.go -o debug/main.o.ll
 
 main: ll
 	@echo "--- Build Main ---"
