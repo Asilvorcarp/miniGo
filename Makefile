@@ -1,4 +1,4 @@
-.PHONY : all clean debug compareLL tests
+.PHONY : all clean debug compareLL built_tests tests
 
 all: build
 
@@ -51,7 +51,7 @@ CLANG_LINK = clang build/$1.o.ll -o build/$1.out
 
 # build silent before tests
 
-tests:
+built_tests:
 	@for test_file in tests/*.go; do \
         base_name=$$(basename $$test_file .go); \
         echo "Running test: $$base_name"; \
@@ -63,6 +63,8 @@ tests:
             ./build/$$base_name.out < $$input_file || exit 1; \
         done; \
     done
+
+tests: silent built_tests
 
 in: main
 	@echo "--- Run Main with Input ---"	

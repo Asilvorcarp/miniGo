@@ -24,19 +24,19 @@ keywords:
 
 ## Usage
 
-Suppose `miniGo.out` is the compiler built,
-`main.go` is the Golang src and `main.ll` is the LLVM IR output.
-
 ```bash
-miniGo.out main.go main.ll
+miniGo.out main.go -o main.ll
 ```
+
+`miniGo.out` is the compiler built,
+`main.go` is the Golang src and `main.ll` is the LLVM IR output you want.
 
 This will also generate the AST json file `ast.o.json` for debugging.
 If the output filename is not specified, the default one would be `a.ll`.
 
 ## Build and Test
 
-To build the compiler `build/miniGo.out`:
+**To build the compiler `build/miniGo.out`:**
 ```bash
 make
 # Or: make miniGo 
@@ -57,12 +57,20 @@ To generate and test the executable with input `debug/test.temp.in`:
 ```bash
 make in
 ```
+
+**To test on every test case in `debug/tests/X.go` with input files `debug/tests/X/*.in`:**
+```bash
+make tests
+```
+
 To clean up:
 ```bash
 make clean
 ```
 
 ## EBNF
+
+// TODO
 
 ```c++
 Exp           : LOrExp;
@@ -145,14 +153,19 @@ Json Library:
 https://github.com/nlohmann/json
 Used to output AST in json format for debugging.
 
+Flex and Bison:
+https://www.gnu.org/software/bison/
+Used to generate lexer and parser.
+
 ## Doc
 
-### Dynamic array
+### Array
 
 (LLVM refers to [LLVM IR](https://llvm.org/docs/LangRef.html) below)
 
-Dynamic array is implemented with `alloca` in LLVM.
+Local array is implemented with `alloca` in LLVM, which is freed when the function returns. // TODO
 The template of alloca: `pT1 = alloca T1, i32 numOfElements, align 4`.
+Dynamic array is implemented with runtime function `malloc`.
 The compiler knows the dimension of the array
 through methods like `Compiler::inferType(pAST exp)` and `BaseAST::info()`.
 
@@ -161,19 +174,16 @@ This is written as `make(Type t, int size)` function in Golang.
 For example, the following code:
 
 ```go
-
 arr := make([][]int, 4)
 arr[0] = make([]int, 5)
 arr[1] = make([]int, 5)
 arr[1][1] = 110
 putint(arr[1][1])
-
 ```
 
 is translated to:
 
 ```llvm
-
 ; array of [4 x [5 x i32]] as ptr
 %spaa = alloca ptr, align 4 ; done by assign
 ; template: pT1 = alloca T1, i32 numOfElements, align 4
@@ -202,15 +212,14 @@ store i32 110, ptr %sp11, align 4 ; set to 110
 %sp11_ = getelementptr inbounds ptr, ptr %pa1_, i32 1 ; index arr[1][1]
 %sp11_val = load i32, ptr %sp11_, align 4
 call i32 @runtime_putint(i32 %sp11_val)
-
 ```
 
 For more details, see `debug/array.ll`.
 
 ### Runtime functions
 
-The functions like `println` and `getchar` are implemented in `runtime.c`.
-They act like the standard library or the runtime of Golang, and are combined with the generated LLVM IR.
+The functions including `getchar` `putchar` and `malloc` are specified in the scope of the language, see `src/Scope.hpp`.
+They act like the standard library or the runtime of Golang, and would be linked with the generated LLVM IR.
 
 ### Type inference
 
@@ -245,6 +254,15 @@ Todo:
 when `compileStmt` compiles a statement of type `ReturnStmtAST`,
 it would check if the type of the expression matches the return type of the function.
 // Techniques like finding the func containing the return statement are needed.
+
+Relavant functions in class `Compiler`:
+
+- `bool matchType(string t1, string t2)`: check if two types match.
+- `bool isPtr(string t)`: check if a type is a pointer.
+- `string reduceDim(string t)`: reduce the dimension of a type by 1.
+- `string reduceDim(string t, int n)`: reduce the dimension of a type by n.
+- `string increaseDim(string t)`: increase the dimension of a type by 1.
+- `string inferType(pAST exp)`: infer the type of a expression.
 
 ### Const expression
 
@@ -290,20 +308,73 @@ we can do cool stuff like **swapping by `a, b = b, a`**.
 - char literal, like `'a'`
 - assign with binary operators, like `a += 1`
 
-## Tests
+### Test Cases
 
-Test files in `debug/`:
+Test files of typical use are in `tests/`:
 
 - sort.go
 - matrix.go
 - course_selection.go
 
-To compile and run with go official compiler:
+As mentioned above, you can test all of them with `make tests`.
+
+More detailed test cases are in `debug/`, which are used for debugging the compiler.
+
+To compile and run with go official compiler for comparison:
 
 ```bash
-go run debug/main.go debug/runtime.go
+go run debug/main.go debug/_runtime.go
 ```
 
-// Todo: more decent way
+Explanation on the test cases:
 
-The `runtime.go` is included to simulate the builtin runtime functions of the miniGo compiler.
+#### `var.go`
+
+// TODO
+
+#### `make.go`
+
+// TODO
+
+#### `for.go`
+
+// TODO
+
+#### `ifElse.go`
+
+// TODO
+
+#### `array.ll`
+
+The LLVM code about array and pointer. It is written by hand, which helps to understand the generated LLVM IR.
+
+To generate a similar one:
+
+```bash
+clang -S -emit-llvm -o array.ll array.c
+```
+
+To run it:
+
+```bash
+clang -o array array.ll && ./array
+```
+
+#### `recAdd.ll`
+
+The LLVM code of recursive addition, which make the feature of recursive function call in LLVM clear.
+
+// TODO
+
+### Implementation Details
+
+Golang Code -> Tokens -> AST -> LLVM IR -> Machine Code
+
+// TODO
+
+Scanner, Parser, Compiler, Linker(clang).
+
+Static semantic analysis in Parser, like checking if a variable is declared before use.
+
+Dynamic semantic analysis in Compiler, like type inference, type checking, etc.
+
