@@ -19,6 +19,18 @@ func getInt() int {
 	return n
 }
 
+// fmt.Printf("%d", n)
+func putInt(n int) {
+	if n < 0 {
+		putchar('-')
+		n = -n
+	}
+	if n/10 != 0 {
+		putInt(n / 10)
+	}
+	putchar(n%10 + '0')
+}
+
 func quicksort(arr []int, left int, right int) {
 	if left < right {
 		pivotIndex := partition(arr, left, right)
@@ -59,7 +71,8 @@ func main() {
 	}
 	quicksort(arr, 0, n-1)
 	for i := 0; i < n; i++ {
-		println(arr[i])
+		putInt(arr[i])
+		putchar('\n')
 	}
 }
 

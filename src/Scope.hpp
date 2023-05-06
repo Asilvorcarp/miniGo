@@ -59,24 +59,13 @@ class Scope {
 
     static Scope* Universe() {
         auto universe = new Scope(nullptr);
+        // --- Add Runtime Functions Here ---
         // no malloc because it is called by make()
         universe->Insert(
-            new Object("getchar", "@runtime_getchar",
+            new Object("getchar", "@getchar",
                        new RuntimeFuncAST("i32", new vector<string>())));
         universe->Insert(
-            new Object("getint", "@runtime_getint",
-                       new RuntimeFuncAST("i32", new vector<string>())));
-        universe->Insert(
-            new Object("putchar", "@runtime_putchar",
-                       new RuntimeFuncAST("i32", new vector<string>{"i32"})));
-        universe->Insert(
-            new Object("putint", "@runtime_putint",
-                       new RuntimeFuncAST("i32", new vector<string>{"i32"})));
-        universe->Insert(
-            new Object("println", "@runtime_println",
-                       new RuntimeFuncAST("i32", new vector<string>{"i32"})));
-        universe->Insert(
-            new Object("exit", "@runtime_exit",
+            new Object("putchar", "@putchar",
                        new RuntimeFuncAST("i32", new vector<string>{"i32"})));
         return universe;
     }
@@ -89,13 +78,6 @@ target triple = "x86_64-pc-linux-gnu"
 declare ptr @malloc(i32)
 declare i32 @getchar()
 declare i32 @putchar(i32)
-
-declare i32 @runtime_getchar()
-declare i32 @runtime_getint()
-declare i32 @runtime_putchar(i32)
-declare i32 @runtime_putint(i32)
-declare i32 @runtime_println(i32)
-declare i32 @runtime_exit(i32)
 )";
 
 const string MainMain = R"(

@@ -19,8 +19,6 @@ build:
 	clang++ -o build/miniGo.out build/miniGo.yy.cpp src/main.cpp $(CFLAGS)
 
 ll: build
-	@echo "--- Build Runtime ---"
-	clang -S -emit-llvm src/runtime.c -o build/runtime.o.ll
 	@echo "--- Build Main LL ---"
 	build/miniGo.out debug/main.go -o build/main.o.ll
 
@@ -29,8 +27,6 @@ debugLL:
 	flex -o build/miniGo.yy.cpp src/miniGo.l
 	bison -t src/miniGo.y -o build/miniGo.tab.hpp
 	clang++ -o build/miniGo.out build/miniGo.yy.cpp src/main.cpp $(CFLAGS) $(DEBUGFLAG)
-	@echo "--- Build Runtime ---"
-	clang -S -emit-llvm src/runtime.c -o build/runtime.o.ll
 	@echo "--- Build Main LL ---"
 	build/miniGo.out debug/main.go -o build/main.o.ll
 
@@ -39,7 +35,7 @@ gdb:
 
 main: ll
 	@echo "--- Build Main ---"
-	clang build/runtime.o.ll build/main.o.ll -o build/main.out
+	clang build/main.o.ll -o build/main.out
 
 test: main
 	@echo "--- Run Main ---"	
@@ -51,8 +47,7 @@ silent:
 	bison -t src/miniGo.y -o build/miniGo.tab.hpp
 	clang++ -o build/miniGo.out build/miniGo.yy.cpp src/main.cpp $(CFLAGS) $(SILENTFLAG)
 
-BUILD_RUNTIME = clang -S -emit-llvm src/runtime.c -o build/runtime.o.ll
-CLANG_LINK = clang build/runtime.o.ll build/$1.o.ll -o build/$1.out
+CLANG_LINK = clang build/$1.o.ll -o build/$1.out
 
 # build silent before tests
 
@@ -60,7 +55,6 @@ tests:
 	@for test_file in tests/*.go; do \
         base_name=$$(basename $$test_file .go); \
         echo "Running test: $$base_name"; \
-        $(BUILD_RUNTIME); \
         build/miniGo.out $$test_file -o build/$$base_name.o.ll; \
         $(call CLANG_LINK,$$base_name); \
         for input_file in tests/$$base_name/*.in; do \
