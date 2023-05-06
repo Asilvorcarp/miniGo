@@ -514,7 +514,7 @@ class Compiler {
                 assert(false);
             } else if (tar->indexList->empty()) {
                 // assert varType == valueTypeList[i]
-                if (varType != valueTypeList[i]) {
+                if (!typeMatch(varType, valueTypeList[i])) {
                     cerr << "compileStmt_assign: varType != valueTypeList[i]"
                          << endl;
                     assert(false);

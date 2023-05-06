@@ -230,6 +230,18 @@ func strcmp(s1 []int, s2 []int) int {
 	return s1[i] - s2[i]
 }
 
+// get the hash value of a string
+// string length should be less than 5
+func hash(s []int) int {
+	i := 0
+	h := 0
+	for s[i] != 0 {
+		h = h*31 + s[i]
+		i++
+	}
+	return h
+}
+
 // end line
 func endl() {
 	putchar('\n')
