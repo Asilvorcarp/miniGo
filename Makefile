@@ -63,7 +63,7 @@ tests:
         $(BUILD_RUNTIME); \
         build/miniGo.out $$test_file -o build/$$base_name.o.ll; \
         $(call CLANG_LINK,$$base_name); \
-        for input_file in tests/$$base_name.*in; do \
+        for input_file in tests/$$base_name/*.in; do \
             echo "Input file: $$input_file"; \
             echo "Output:"; \
             ./build/$$base_name.out < $$input_file || exit 1; \
