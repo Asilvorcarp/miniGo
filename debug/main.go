@@ -115,8 +115,8 @@ func main() {
 	bRows, bCols := getInt(), getInt()
 	matrixB := parseMatrix(bRows, bCols)
 
-	// "Incompatible Dimensions\n" as int array
-	var err = []int{73, 110, 99, 111, 109, 112, 97, 116, 105, 98, 108, 101, 32, 68, 105, 109, 101, 110, 115, 105, 111, 110, 115, 10, 0}
+	// "Incompatible Dimensions\n" as char literal array
+	err := []int{'I', 'n', 'c', 'o', 'm', 'p', 'a', 't', 'i', 'b', 'l', 'e', ' ', 'D', 'i', 'm', 'e', 'n', 's', 'i', 'o', 'n', 's', '\n', 0}
 
 	// error if dim not match
 	if aCols != bRows {
@@ -161,6 +161,6 @@ func outputMatrix(matrix [][]int, rows int, cols int) {
 		for j := 0; j < cols; j++ {
 			putIntW(matrix[i][j], 10)
 		}
-		putchar(10)
+		putchar('\n')
 	}
 }

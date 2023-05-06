@@ -19,6 +19,26 @@
 
 using namespace std;
 
+// get the char value of a char literal
+char getCharVal(const char *str) {
+    if (str[1] == '\\') {
+        switch (str[2]) {
+            case '\'': return '\'';
+            case '\"': return '\"';
+            case '\?': return '\?';
+            case '\\': return '\\';
+            case 'a': return '\a';
+            case 'b': return '\b';
+            case 'f': return '\f';
+            case 'n': return '\n';
+            case 'r': return '\r';
+            case 't': return '\t';
+            case 'v': return '\v';
+        }
+    }
+    return str[1];
+}
+
 %}
 
 /* // 这里写一些 Flex/Bison 相关的定义
@@ -29,8 +49,9 @@ using namespace std;
 WhiteSpace    [ \t\n\r]*
 LineComment   "//".*
 
-/* char 字面量 */
-CharLiteral   '(\\.|[^\\'])'
+/* char literal */
+SimpleEscapeSequence \\\'|\\\"|\\\?|\\\\|\\a|\\b|\\f|\\n|\\r|\\t|\\v
+CharLiteral   \'[^\\\'\n]\'|\'{SimpleEscapeSequence}\'
 
 /* 标识符 */
 Identifier    [a-zA-Z_][a-zA-Z0-9_]*
@@ -45,7 +66,7 @@ Hexadecimal   0[xX][0-9a-fA-F]+
 {WhiteSpace}    { /* 忽略, 不做任何操作 */ }
 {LineComment}   { /* 忽略, 不做任何操作 */ }
 
-{CharLiteral}   { yylval.char_val = yytext[1]; return CHAR_CONST; }
+{CharLiteral}   { yylval.char_val = getCharVal(yytext); return CHAR_CONST; }
 
 "package"       { return PACKAGE; }
 "import"        { return IMPORT; }
