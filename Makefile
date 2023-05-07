@@ -69,6 +69,27 @@ built_tests:
 
 tests: silent built_tests
 
+SRC_DIR=tests
+BUILD_DIR=build
+
+test_files=$(filter-out $(SRC_DIR)/Runtime.go, $(wildcard $(SRC_DIR)/*.go))
+go_exes=$(patsubst $(SRC_DIR)/%.go, $(BUILD_DIR)/%.right.out, $(test_files))
+
+$(BUILD_DIR)/%.right.out: $(SRC_DIR)/%.go
+	go build -o $@ $< tests/Runtime.go
+
+go_build: $(go_exes)
+
+INPUT=tests/course_selection/3.in
+EXEC1=build/course_selection.right.out
+EXEC2=build/course_selection.out
+
+perf:
+	@echo "Running $(EXEC1)..."
+	@time $(EXEC1) < $(INPUT) > /dev/null
+	@echo "Running $(EXEC2)..."
+	@time $(EXEC2) < $(INPUT) > /dev/null
+
 go_tests:
 	@for test_file in tests/*.go; do \
 		base_name=$$(basename $$test_file .go); \
@@ -137,10 +158,8 @@ win-test: win
 
 clean:
 	@echo "--- Clean ---"
-	-rm -f build/*.exe
-	-rm -f build/miniGo
-	-rm -f ast.o.json
-	-find . -name "*.o.*" | xargs rm -f
-	-find . -name "*.out" | xargs rm -f
-	-find . -name "*.tab.*" | xargs rm -f
-	-find . -name "*.yy.*" | xargs rm -f
+	rm -rf $(BUILD_DIR)/*
+	find . -name "*.o.*" -delete
+	find . -name "*.out" -delete
+	find . -name "*.tab.*" -delete
+	find . -name "*.yy.*" -delete
