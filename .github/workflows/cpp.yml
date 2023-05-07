@@ -35,8 +35,8 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
-        tag_name: auto
-        release_name: good
+        tag_name: latest
+        release_name: v1.0.0
         draft: true
         prerelease: false
 
