@@ -25,10 +25,10 @@ keywords:
 ## Usage
 
 ```bash
-miniGo.out main.go -o main.ll
+miniGo main.go -o main.ll
 ```
 
-`miniGo.out` is the compiler built,
+`miniGo` is the compiler built,
 `main.go` is the Golang src and `main.ll` is the LLVM IR output you want.
 
 This will also generate the AST json file `ast.o.json` for debugging.
@@ -36,7 +36,7 @@ If the output filename is not specified, the default one would be `a.ll`.
 
 ## Build and Test
 
-**To build the compiler `build/miniGo.out`:**
+**To build the compiler `build/miniGo`:**
 ```bash
 make
 # Or: make miniGo 

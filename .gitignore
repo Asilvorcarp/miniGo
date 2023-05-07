@@ -10,3 +10,5 @@
 
 *.temp.in
 tests/runtime.go
+
+.env

@@ -479,6 +479,3 @@ ConstExp: Exp {
 void yyerror(pAST &ast, const char *s) {
   cerr << "error: " << s << endl;
 }
-
-// run with trace
-// make && ./miniGo.out ../debug/return.go && make clean

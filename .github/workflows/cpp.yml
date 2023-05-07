@@ -10,12 +10,56 @@ on:
 
 jobs:
   build:
-
     runs-on: ubuntu-latest
-
     steps:
     - uses: actions/checkout@v3
     - name: Set up Bison Flex
-      run: sudo apt-get update && sudo apt-get install flex bison
+      run: sudo apt-get update && sudo apt-get install flex bison -y
+    - name: Set up C++ Compiler
+      run: sudo apt-get install clang -y
+    - name: Set up LLVM Compiler
+      run: sudo apt-get install llvm -y
     - name: make
       run: make
+    # cross compile for Windows
+    - name: Set up C++ Compiler for Windows
+      run: sudo apt install g++-mingw-w64-x86-64 -y
+    - name: make for Windows
+      run: make win
+
+    # now release
+
+    - name: Create Draft Release
+      id: create_release
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: auto
+        release_name: good
+        draft: true
+        prerelease: false
+
+    - uses: actions/upload-release-asset@v1.0.1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: ./build/miniGo
+        asset_name: miniGo-linux-x64
+        asset_content_type: application/octet-stream
+
+    - uses: actions/upload-release-asset@v1.0.1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: ./build/miniGo.exe
+        asset_name: miniGo-win-x64.exe
+        asset_content_type: application/octet-stream
+
+    - uses: eregon/publish-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        release_id: ${{ steps.create_release.outputs.id }}

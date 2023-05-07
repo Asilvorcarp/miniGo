@@ -11,27 +11,28 @@ SILENTFLAG = -DSILENT -O3
 # ensure debug/main.go for ll
 # ensure debug/test.temp.in for test
 
-build:
-	@echo "--- Build Compiler ---"
+yacc:
 	@mkdir -p build
+	@echo "--- Build Yacc ---"
 	flex -o build/miniGo.yy.cpp src/miniGo.l
 	bison -t src/miniGo.y -o build/miniGo.tab.hpp
-	clang++ -o build/miniGo.out build/miniGo.yy.cpp src/main.cpp $(CFLAGS)
+
+build: yacc
+	@echo "--- Build Compiler ---"
+	clang++ -o build/miniGo build/miniGo.yy.cpp src/main.cpp $(CFLAGS)
 
 ll: build
 	@echo "--- Build Main LL ---"
-	build/miniGo.out debug/main.go -o build/main.o.ll
+	build/miniGo debug/main.go -o build/main.o.ll
 
-debugLL: 
+debugLL: yacc
 	@echo "--- Build Compiler ---"
-	flex -o build/miniGo.yy.cpp src/miniGo.l
-	bison -t src/miniGo.y -o build/miniGo.tab.hpp
-	clang++ -o build/miniGo.out build/miniGo.yy.cpp src/main.cpp $(CFLAGS) $(DEBUGFLAG)
+	clang++ -o build/miniGo build/miniGo.yy.cpp src/main.cpp $(CFLAGS) $(DEBUGFLAG)
 	@echo "--- Build Main LL ---"
-	build/miniGo.out debug/main.go -o build/main.o.ll
+	build/miniGo debug/main.go -o build/main.o.ll
 
 gdb:
-	gdb --args build/miniGo.out debug/main.go -o build/main.o.ll
+	gdb --args build/miniGo debug/main.go -o build/main.o.ll
 
 main: ll
 	@echo "--- Build Main ---"
@@ -41,11 +42,9 @@ test: main
 	@echo "--- Run Main ---"	
 	@build/main.out
 
-silent:
+silent: yacc
 	@echo "--- Build Compiler ---"
-	flex -o build/miniGo.yy.cpp src/miniGo.l
-	bison -t src/miniGo.y -o build/miniGo.tab.hpp
-	clang++ -o build/miniGo.out build/miniGo.yy.cpp src/main.cpp $(CFLAGS) $(SILENTFLAG)
+	clang++ -o build/miniGo build/miniGo.yy.cpp src/main.cpp $(CFLAGS) $(SILENTFLAG)
 
 CLANG_LINK = clang build/$1.o.ll -o build/$1.out
 
@@ -55,7 +54,7 @@ built_tests:
 	@for test_file in tests/*.go; do \
         base_name=$$(basename $$test_file .go); \
         echo " > Running test: $$base_name"; \
-        build/miniGo.out $$test_file -o build/$$base_name.o.ll; \
+        build/miniGo $$test_file -o build/$$base_name.o.ll; \
         $(call CLANG_LINK,$$base_name); \
         for input_file in tests/$$base_name/*.in; do \
             echo " - Input file: $$input_file"; \
@@ -81,10 +80,8 @@ compareResult : in
 
 CROSSFLAGS = -static-libgcc -static-libstdc++
 
-win:
+win: yacc
 	@echo "--- Build Compiler ---"
-	flex -o build/miniGo.yy.cpp src/miniGo.l
-	bison -t src/miniGo.y -o build/miniGo.tab.hpp
 	x86_64-w64-mingw32-g++ -o build/miniGo.exe build/miniGo.yy.cpp src/main.cpp $(CFLAGS) $(CROSSFLAGS)
 
 # copy to windows and run
