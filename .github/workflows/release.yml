@@ -36,7 +36,7 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         tag_name: latest
-        release_name: v1.0.0
+        release_name: Release ${{ github.ref }}
         draft: true
         prerelease: false
 
