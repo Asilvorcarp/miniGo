@@ -1,26 +1,6 @@
 # miniGo
 
-The compiler for a subset of Go, implemented in C++.
-
-## Grammar
-
-// TODO
-
-keywords:
-```
-"package"
-"import"
-"var"
-"func"
-"return"
-"if"
-"else"
-"for"
-"break"
-"continue"
-"defer"
-"goto"
-```
+The compiler for a subset of Golang, implemented in C++.
 
 ## Usage
 
@@ -28,8 +8,7 @@ keywords:
 miniGo main.go -o main.ll
 ```
 
-`miniGo` is the compiler built,
-`main.go` is the Golang src and `main.ll` is the LLVM IR output you want.
+`main.go` is the Golang source code and `main.ll` is the LLVM IR output you want.
 
 This will also generate the AST json file `ast.o.json` for debugging.
 If the output filename is not specified, the default one would be `a.ll`.
@@ -68,7 +47,27 @@ To clean up:
 make clean
 ```
 
-## EBNF
+## Grammar
+
+// TODO
+
+### Keywords
+```
+"package"
+"import"
+"var"
+"func"
+"return"
+"if"
+"else"
+"for"
+"break"
+"continue"
+"defer"
+"goto"
+```
+
+### EBNF
 
 // TODO
 

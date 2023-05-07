@@ -1,4 +1,4 @@
-.PHONY : all clean debug compareLL built_tests tests winCp
+.PHONY : all clean debug compareLL built_tests tests winCp go_tests diff in
 
 all: build
 
@@ -52,18 +52,61 @@ CLANG_LINK = clang build/$1.o.ll -o build/$1.out
 
 built_tests:
 	@for test_file in tests/*.go; do \
-        base_name=$$(basename $$test_file .go); \
-        echo " > Running test: $$base_name"; \
-        build/miniGo $$test_file -o build/$$base_name.o.ll; \
-        $(call CLANG_LINK,$$base_name); \
-        for input_file in tests/$$base_name/*.in; do \
-            echo " - Input file: $$input_file"; \
-            echo " - Output:"; \
-            ./build/$$base_name.out < $$input_file || exit 1; \
-        done; \
-    done
+		base_name=$$(basename $$test_file .go); \
+		if [ $$base_name != "Runtime" ]; then \
+			echo " > Running test: $$base_name"; \
+			build/miniGo $$test_file -o build/$$base_name.o.ll; \
+			$(call CLANG_LINK,$$base_name); \
+			for input_file in tests/$$base_name/*.in; do \
+				echo " - Input file: $$input_file"; \
+				output_file=$${input_file%.in}.out; \
+				./build/$$base_name.out < $$input_file > $$output_file || exit 1; \
+				echo " - Output:"; \
+				cat $$output_file; \
+			done; \
+		fi \
+	done
 
 tests: silent built_tests
+
+go_tests:
+	@for test_file in tests/*.go; do \
+		base_name=$$(basename $$test_file .go); \
+		if [ $$base_name != "Runtime" ]; then \
+			echo " > Running test: $$base_name"; \
+			for input_file in tests/$$base_name/*.in; do \
+				echo " - Input file: $$input_file"; \
+				output_file=$${input_file%.in}.right.out; \
+				go run tests/Runtime.go $$test_file < $$input_file > $$output_file || exit 1; \
+				echo " - Output:"; \
+				cat $$output_file; \
+			done; \
+		fi \
+	done
+
+diff: tests go_tests
+	@all_same=true; \
+	for test_file in tests/*.go; do \
+		base_name=$$(basename $$test_file .go); \
+		if [ $$base_name != "Runtime" ]; then \
+			echo " > On test: $$base_name"; \
+			for expected_file in tests/$$base_name/*.right.out; do \
+				output_file=$${expected_file%.right.out}.out; \
+				echo " - Diffing $$expected_file with $$output_file"; \
+				diff --strip-trailing-cr $$expected_file $$output_file; \
+				if [ $$? -eq 0 ]; then \
+					echo " - Pass!"; \
+				else \
+					all_same=false; \
+				fi \
+			done; \
+		fi \
+	done; \
+	if [ $$all_same = true ]; then \
+		echo "Pass All Tests!"; \
+	else \
+		echo "There are differences between some output files and expected files!"; \
+	fi
 
 in: main
 	@echo "--- Run Main with Input ---"	
@@ -95,8 +138,9 @@ win-test: win
 clean:
 	@echo "--- Clean ---"
 	-rm -f build/*.exe
-	-rm -f **/*.yy.*
-	-rm -f **/*.tab.*
-	-rm -f **/*.o.*
-	-rm -f **/*.out
+	-rm -f build/miniGo
 	-rm -f ast.o.json
+	-find . -name "*.o.*" | xargs rm -f
+	-find . -name "*.out" | xargs rm -f
+	-find . -name "*.tab.*" | xargs rm -f
+	-find . -name "*.yy.*" | xargs rm -f

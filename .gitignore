@@ -7,6 +7,7 @@
 *.output
 *.exe
 *.o.*
+build/miniGo
 
 *.temp.in
 tests/runtime.go
