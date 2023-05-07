@@ -293,70 +293,62 @@ class Compiler {
             compileStmt_assign(os, _stmt);
         } else if (stmt->type() == TType::IfStmtT) {
             auto stmt1 = reinterpret_cast<IfStmtAST*>(stmt);
-            auto ifre1 = scope;
-            enterScope();
+            // if you are debugging, you can generate more labels
             ss << labelSuffix++;
+            // for basic block?
             auto ifInit = genLabelId("if.init" + ss.str());
             auto ifCond = genLabelId("if.cond" + ss.str());
+            // the body label is just a placeholder for br
             auto ifBody = genLabelId("if.body" + ss.str());
+            // for if-else
             auto ifElse = genLabelId("if.else" + ss.str());
+            // for if or if-else
             auto ifEnd = genLabelId("if.end" + ss.str());
+            // the scope out of if
+            auto outIf = scope;
+            // enter scope in if
             // br if.init
-            os << "\tbr label %" << ifInit << "\n";
-            // if.init
-            os << "\n" << ifInit << ":\n";
-            auto ifre2 = scope;
+            // os << "\tbr label %" << ifInit << "\n";
+            // // if.init
+            // os << "\n" << ifInit << ":\n";
             enterScope();
             {
                 if (stmt1->init != nullptr) {
                     compileStmt(os, stmt1->init);
-                    os << "\tbr label %" << ifCond << "\n";
-                } else {
-                    os << "\tbr label %" << ifCond << "\n";
                 }
-                // if.cond
-                {
-                    os << "\n" << ifCond << ":\n";
-                    auto cond = compileExpr(os, stmt1->cond);
-                    if (stmt1->elseBlockStmt != nullptr) {
-                        os << "\tbr i1 " << cond << ", label %" << ifBody
-                           << ", label %" << ifElse << "\n";
-                    } else {
-                        os << "\tbr i1 " << cond << ", label %" << ifBody
-                           << ", label %" << ifEnd << "\n";
-                    }
+                // os << "\tbr label %" << ifCond << "\n";
+                // // if.cond
+                // os << "\n" << ifCond << ":\n";
+                auto cond = compileExpr(os, stmt1->cond);
+                if (stmt1->elseBlockStmt != nullptr) {
+                    os << "\tbr i1 " << cond << ", label %" << ifBody
+                       << ", label %" << ifElse << "\n";
+                } else {
+                    os << "\tbr i1 " << cond << ", label %" << ifBody
+                       << ", label %" << ifEnd << "\n";
                 }
                 // if.body
-                auto ifre3 = scope;
+                auto reScope1 = scope;
                 enterScope();
                 {
                     os << "\n" << ifBody << ":\n";
                     compileStmt(os, stmt1->body);
-                    if (stmt1->elseBlockStmt != nullptr) {
-                        os << "\tbr label %" << ifElse << "\n";
-                    } else {
-                        os << "\tbr label %" << ifEnd << "\n";
-                    }
+                    os << "\tbr label %" << ifEnd << "\n";
                 }
-                restoreScope(ifre3);
+                restoreScope(reScope1);
                 // if.else
-                auto ifre4 = scope;
-                enterScope();
-                {
+                if (stmt1->elseBlockStmt != nullptr) {
+                    auto reScope2 = scope;
+                    enterScope();
                     os << "\n" << ifElse << ":\n";
-                    if (stmt1->elseBlockStmt != nullptr) {
-                        compileStmt(os, stmt1->elseBlockStmt);
-                        os << "\tbr label %" << ifEnd << "\n";
-                    } else {
-                        os << "\tbr label %" << ifEnd << "\n";
-                    }
+                    compileStmt(os, stmt1->elseBlockStmt);
+                    restoreScope(reScope2);
+                    os << "\tbr label %" << ifEnd << "\n";
                 }
-                restoreScope(ifre4);
             }
-            restoreScope(ifre2);
             // end
             os << "\n" << ifEnd << ":\n";
-            restoreScope(ifre1);
+            restoreScope(outIf);
         } else if (stmt->type() == TType::ForStmtT) {
             auto stmt2 = reinterpret_cast<ForStmtAST*>(stmt);
             auto re1 = scope;
@@ -531,9 +523,9 @@ class Compiler {
                     auto idxName = compileExpr(os, idxExp);
                     // assert idxExp is int, type checking
                     if (inferType(idxExp) != "i32") {
-                        cerr
-                            << "compileStmt_assign: index expression is not int"
-                            << endl;
+                        cerr << "compileStmt_assign: index expression is "
+                                "not int"
+                             << endl;
                         assert(false);
                     }
                     string ptrValName = genId();
@@ -653,9 +645,9 @@ class Compiler {
                 // assert op is EQ or NE
                 if (exp->op != BinExpAST::Op::EQ &&
                     exp->op != BinExpAST::Op::NE) {
-                    cerr
-                        << "compileExpr: ptr can only be compared with EQ or NE"
-                        << endl;
+                    cerr << "compileExpr: ptr can only be compared with EQ "
+                            "or NE"
+                         << endl;
                     assert(false);
                 }
             }
