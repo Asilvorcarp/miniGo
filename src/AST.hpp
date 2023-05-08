@@ -899,7 +899,7 @@ class NilAST : public ExpAST {
         return -1;
     }
     BaseAST *copy() const override { return new NilAST(); }
-    string info() const override { return "ptr"; }
+    string info() const override { return "nil"; } // matches any pointer
     TType type() const override { return ty; }
     json toJson() const override {
         json j;

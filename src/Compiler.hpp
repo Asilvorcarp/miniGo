@@ -420,7 +420,7 @@ class Compiler {
                 os << "\tret void\n";
             } else {
                 // info() == "infer"
-                // TODO type check: return type should be the same as function
+                // TODO hard type check: return type should be the same as function
                 auto ret = compileExpr(os, stm->exp);
                 auto retType = inferType(stm->exp);
                 os << "\tret " << retType << " " << ret << "\n";
@@ -505,7 +505,7 @@ class Compiler {
                 cerr << "compileStmt_assign: indexList is null" << endl;
                 assert(false);
             } else if (tar->indexList->empty()) {
-                // assert varType == valueTypeList[i]
+                // assert type match
                 if (!typeMatch(varType, valueTypeList[i])) {
                     cerr << "compileStmt_assign: varType != valueTypeList[i]"
                          << endl;
@@ -540,10 +540,13 @@ class Compiler {
                     ptrName = nextPtrName;
                     curType = redCurType;
                 }
-                // TODO assert valueType == curType, type checking
+                // assert valueType match curType, type checking
+                if (!typeMatch(curType, valueTypeList[i])) {
+                    cerr << "compileStmt_assign: valueType != curType" << endl;
+                    assert(false);
+                }
                 os << "\tstore " << valueTypeList[i] << " " << valueNameList[i]
-                   << ", " << increaseDim(valueTypeList[i]) << " " << ptrName
-                   << "\n";
+                   << ", " << increaseDim(curType) << " " << ptrName << "\n";
             }
         }
     }
@@ -630,26 +633,38 @@ class Compiler {
             if (debug) {
                 clog << ">> done right" << endl;
             }
-            // assert leftType match rightType
-            if (typeMatch(leftType, rightType) == false) {
+            // assert one direction of typeMatch is true
+            // e.g. i32*<-nil, i32*->nil
+            bool isMatch = typeMatch(leftType, rightType) ||
+                           typeMatch(rightType, leftType);
+            if (!isMatch) {
                 cerr << "compileExpr: type mismatch" << endl;
                 cerr << " - left: " << leftType << ", right: " << rightType
                      << endl;
                 cerr << " - ast: " << *exp << endl;
                 assert(false);
             }
-            // get type of bin
+            // get type of result
             string finalType = leftType;
             if (isPtr(leftType)) {
-                finalType = "ptr";
                 // assert op is EQ or NE
                 if (exp->op != BinExpAST::Op::EQ &&
                     exp->op != BinExpAST::Op::NE) {
-                    cerr << "compileExpr: ptr can only be compared with EQ "
-                            "or NE"
-                         << endl;
+                    cerr
+                        << "compileExpr: pointers can only be compared with EQ "
+                           "or NE"
+                        << endl;
                     assert(false);
                 }
+            }
+            // result cannot be nil (if both nil), just return true
+            if(finalType == "nil") {
+                os << "\t" << localName << " = "
+                   << "add"
+                   << " i32 "
+                   << "0"
+                   << ", " << "1" << endl;
+                return localName;
             }
             switch (exp->op) {
                 case BinExpAST::Op::ADD:
@@ -785,10 +800,16 @@ class Compiler {
             os << "\t" << sizeLocal << " = "
                << "mul"
                << " i32 " << lenLocal << ", " << elemSize << endl;
-            // call malloc
-            os << "\t" << localName << " = "
-               << "call noalias " << varType << " @malloc(i32 " << sizeLocal
+            // call malloc which returns i8*
+            auto i8pName = genId();
+            auto i8pType = "i8*";
+            os << "\t" << i8pName << " = "
+               << "call noalias " << i8pType << " @malloc(i32 " << sizeLocal
                << ")" << endl;
+            // convert the ptr type with bitcast
+            os << "\t" << localName << " = "
+               << "bitcast " << i8pType << " " << i8pName << " to " << varType
+               << endl;
             return localName;
         } else if (expr->type() == TType::ArrayExpT) {
             auto exp = reinterpret_cast<ArrayExpAST*>(expr);
@@ -814,14 +835,25 @@ class Compiler {
             // get size of array
             int elemNum = exp->initValList->size();
             auto arrSize = elemNum * elemSize;
-            // call malloc
-            os << "\t" << localName << " = "
-               << "call noalias " << varType << " @malloc(i32 "
+            // call malloc which returns i8*
+            auto i8pName = genId();
+            auto i8pType = "i8*";
+            os << "\t" << i8pName << " = "
+               << "call noalias " << i8pType << " @malloc(i32 "
                << to_string(arrSize) << ")" << endl;
+            // convert the ptr type with bitcast
+            os << "\t" << localName << " = "
+               << "bitcast " << i8pType << " " << i8pName << " to " << varType
+               << endl;
             // get and store each element
             for (int i = 0; i < elemNum; i++) {
-                // TODO: check type
                 auto initValLocal = compileExpr(os, exp->initValList->at(i));
+                auto initValType = inferType(exp->initValList->at(i));
+                // check type
+                if(!typeMatch(elemType, initValType)) {
+                    cerr << "compileExpr: array exp type mismatch" << endl;
+                    assert(false);
+                }
                 auto idxLocal = to_string(i);
                 auto elemPtrLocal = genId();
                 // here varType is usually elemType*
@@ -870,8 +902,8 @@ class Compiler {
             os << "\t" << sub.str() << "call " << funcType << " " << funcName
                << "(";
             for (int i = 0; i < argNum; i++) {
-                // type check for arg and param
-                if (argTypes[i] != paramTypes->at(i)) {
+                // type check for param and arg
+                if (!typeMatch(paramTypes->at(i), argTypes[i])) {
                     cerr << "compileExpr: type mismatch in function call - "
                          << funcName << endl;
                     // show the arg type and param type
@@ -934,23 +966,25 @@ class Compiler {
     }
 
     // increase dimension of array type
-    // support only ptr now (not like [5 x [4 x i32]])
+    // support only pointer now (not like [5 x [4 x i32]])
     string increaseDim(string t) {
-        if (t == "ptr") {
-            return "ptr";
-        }
         return t + "*";
     }
 
     // whether a type is a pointer type
-    bool isPtr(string t) { return t.find("*") != string::npos || t == "ptr"; }
+    bool isPtr(string t) { return t.find("*") != string::npos || t == "nil"; }
 
-    // whether two types matches
-    // TODO need to fix all type checking system
-    bool typeMatch(string t1, string t2) {
-        if (t1 == t2) return true;
-        // TODO maybe one side need to be "ptr"
-        if (isPtr(t1) && isPtr(t2)) return true;
+    // try to fit tRight to tLeft, if cannot, return false
+    // tRight maybe change to tLeft if it is nil
+    bool typeMatch(string tLeft, string& tRight) {
+        // TODO use this in all type checking system
+        if (tLeft == tRight) return true;
+        // right side is nil, left is X*
+        // convert nil to X*, and return true
+        if (tRight == "nil" && isPtr(tLeft)) {
+            tRight = tLeft;
+            return true;
+        }
         return false;
     }
 
