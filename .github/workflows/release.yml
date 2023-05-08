@@ -25,14 +25,11 @@ jobs:
       run: mv build/miniGo miniGo-linux-x64 && mv build/miniGo.exe miniGo-win-x64.exe
 
     # now release
-    - name: Generate Changelog
-      run: echo "# Good things have arrived" > ${{ github.workspace }}-CHANGELOG.txt
-
     - name: Release
       uses: softprops/action-gh-release@v1
       if: startsWith(github.ref, 'refs/tags/')
       with:
-        body_path: ${{ github.workspace }}-CHANGELOG.txt
+        body_path: ${{ github.workspace }}/CHANGELOG.md
         files: |
           miniGo-linux-x64
           miniGo-win-x64.exe
