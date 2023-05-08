@@ -11,6 +11,7 @@
 *.o.*
 *.temp.*
 
+debug/main.go
 tests/runtime.go
 
 .env
