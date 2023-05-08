@@ -9,24 +9,22 @@ on:
     types: [ started ]
 
 jobs:
-  build:
+  test:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v3
     - name: Set up Bison Flex
       run: sudo apt-get update && sudo apt-get install flex bison -y
-    - name: Set up C++ Compiler
+    - name: Set up C++ and LLVM Compiler
       run: sudo apt-get install clang -y
-    - name: Set up LLVM Compiler
-      run: sudo apt-get install llvm -y
     - name: make
       run: make
 
-    # now test by diff the output of miniGo compiler and go compiler
+    # now test by diff the output of miniGo compiler and go official compiler
 
     - name: Set up Go Compiler
-      uses: actions/setup-go@v2
+      uses: actions/setup-go@v4
       with:
-        go-version: 1.16
+        go-version: 'stable'
     - name: Diff
       run: make diff

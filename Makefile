@@ -54,7 +54,7 @@ gdb: build
 
 build/main.out: ll
 	@echo "--- Build Main ---"
-	clang build/main.o.ll -o build/main.out
+	clang build/main.o.ll -o build/main.out -mllvm -opaque-pointers
 
 .PHONY: main
 main: build/main.out
@@ -69,7 +69,7 @@ silent: yacc
 	@echo "--- Build Compiler ---"
 	clang++ -o build/miniGo build/miniGo.yy.cpp src/main.cpp $(CFLAGS) $(SILENTFLAG)
 
-CLANG_LINK = clang build/$1.o.ll -o build/$1.out
+CLANG_LINK = clang build/$1.o.ll -o build/$1.out -mllvm -opaque-pointers
 
 # build silent before tests
 
