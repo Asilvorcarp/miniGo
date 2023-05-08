@@ -98,17 +98,7 @@ build/%.right.out: src/%.go
 
 go_build: $(go_exes)
 
-INPUT=tests/course_selection/3.in
-EXEC1=build/course_selection.right.out
-EXEC2=build/course_selection.out
-
 perf:
-	@echo "Running $(EXEC1)..."
-	@time $(EXEC1) < $(INPUT) > /dev/null
-	@echo "Running $(EXEC2)..."
-	@time $(EXEC2) < $(INPUT) > /dev/null
-
-perf2:
 	# @time $(EXEC1) < $(INPUT) > /dev/null
 	@for test_file in tests/*.go; do \
 		base_name=$$(basename $$test_file .go); \
