@@ -2,6 +2,15 @@
 # ensure debug/main.go for "ll"
 # ensure debug/test.temp.in for "in"
 
+# extensions:
+# - .bin  : binary executable in Linux
+# - .exe  : binary executable in Windows
+# - .ll   : LLVM IR
+# - .go   : source code in Golang
+# - .out  : output text file
+# - .in   : input text file
+# - .Go.* : Go official compiler output
+
 .PHONY: all
 all: build
 
@@ -43,7 +52,7 @@ build/%.o.ll: tests/%.go build
 	@echo "--- Build LL ---"
 	build/miniGo $< -o $@
 
-build/main.o.ll: debug/main.go build # TODO maybe change to main.ll
+build/main.o.ll: debug/main.go build
 	@echo "--- Build Main LL ---"
 	build/miniGo debug/main.go -o build/main.o.ll
 
@@ -62,18 +71,19 @@ debugLL: ll
 gdb: build
 	gdb --args build/miniGo debug/main.go -o build/main.o.ll
 
-# from .ll to .out
-build/%.out: build/%.o.ll # TODO maybe change to .mini.out
+# from .ll to .bin
+build/%.bin: build/%.o.ll # TODO maybe change to .mini.out
+	@echo "--- Build Bin ---"
 	clang $< -o $@ -mllvm -opaque-pointers
 
 .PHONY: main
-main: build/main.out
+main: build/main.bin
 
 # simple test by running main
 .PHONY: test
 test: main
 	@echo "--- Run Main ---"	
-	@build/main.out
+	@build/main.bin
 
 # simple test by running main with input
 .PHONY: in
@@ -81,19 +91,19 @@ in: main
 	@echo "--- Run Main with Input ---"	
 	@cat debug/test.temp.in
 	@echo "--- Output ---"	
-	@cat debug/test.temp.in build/main.out
+	@cat debug/test.temp.in | build/main.bin
 
 .PHONY: diffMain
 diffMain : in
-	cat debug/test.temp.in go run ./debug/main.go ./debug/Runtime.go > right.o.txt
-	cat debug/test.temp.in build/main.out > my.o.txt
+	cat debug/test.temp.in | go run ./debug/main.go ./debug/Runtime.go > Go.out
+	cat debug/test.temp.in | build/main.bin > mini.out
 
-TEST_GO_SRCS=$(filter-out tests/Runtime.go, $(wildcard tests/*.go))
-EXE_OUTS=$(patsubst tests/%.go, build/%.out, $(TEST_GO_SRCS))
-RIGHT_EXE_OUTS=$(patsubst tests/%.go, build/%.right.out, $(TEST_GO_SRCS))
+GO_SRCS=$(filter-out tests/Runtime.go, $(wildcard tests/*.go))
+MINI_BINS=$(patsubst tests/%.go, build/%.bin, $(GO_SRCS))
+GO_BINS=$(patsubst tests/%.go, build/%.Go.bin, $(GO_SRCS))
 
 .PHONY: tests
-tests: $(EXE_OUTS)
+tests: $(MINI_BINS)
 	@for test_file in tests/*.go; do \
 		base_name=$$(basename $$test_file .go); \
 		if [ $$base_name != "Runtime" ]; then \
@@ -101,7 +111,7 @@ tests: $(EXE_OUTS)
 			for input_file in tests/$$base_name/*.in; do \
 				echo " - Input file: $$input_file"; \
 				output_file=$${input_file%.in}.out; \
-				./build/$$base_name.out < $$input_file > $$output_file |exit 1; \
+				./build/$$base_name.bin < $$input_file > $$output_file |exit 1; \
 				if [ $(SHOW_TEST_OUTPUT) -eq 1 ]; then \
 					echo " - Output:"; \
 					cat $$output_file; \
@@ -112,13 +122,13 @@ tests: $(EXE_OUTS)
 
 # now use go official compiler for comparison
 
-build/%.right.out: tests/%.go tests/Runtime.go
+build/%.Go.bin: tests/%.go tests/Runtime.go
 	go build -o $@ $< tests/Runtime.go
 
 .PHONY: go_build
-go_build: $(RIGHT_EXE_OUTS)
+go_build: $(GO_BINS)
 
-# get right.out # TODO maybe change name (two right now)
+# get Go.out # TODO maybe change name (two right now)
 .PHONY: go_tests
 go_tests: go_build
 	@for test_file in tests/*.go; do \
@@ -127,8 +137,8 @@ go_tests: go_build
 			echo " > Running test: $$base_name"; \
 			for input_file in tests/$$base_name/*.in; do \
 				echo " - Input file: $$input_file"; \
-				output_file=$${input_file%.in}.right.out; \
-				build/$$base_name.right.out < $$input_file > $$output_file |exit 1; \
+				output_file=$${input_file%.in}.Go.out; \
+				build/$$base_name.Go.bin < $$input_file > $$output_file |exit 1; \
 				if [ $(SHOW_TEST_OUTPUT) -eq 1 ]; then \
 					echo " - Output:"; \
 					cat $$output_file; \
@@ -145,8 +155,8 @@ diff: tests go_tests
 		base_name=$$(basename $$test_file .go); \
 		if [ $$base_name != "Runtime" ]; then \
 			echo " > On test: $$base_name"; \
-			for expected_file in tests/$$base_name/*.right.out; do \
-				output_file=$${expected_file%.right.out}.out; \
+			for expected_file in tests/$$base_name/*.Go.out; do \
+				output_file=$${expected_file%.Go.out}.out; \
 				echo -n " - Diffing $$expected_file with $$output_file:"; \
 				diff --strip-trailing-cr $$expected_file $$output_file; \
 				if [ $$? -eq 0 ]; then \
