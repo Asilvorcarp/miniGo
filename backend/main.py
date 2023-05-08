@@ -5,8 +5,8 @@ import llvmlite.ir as ll
 import llvmlite.binding as llvm
 llvm.initialize()
 
-# get ir string from file "main.o.ll"
-ir = open("main.o.ll").read()
+# get ir string from file "build/main.o.ll"
+ir = open("build/main.o.ll").read()
 
 # the ModuleRef
 mod = llvm.parse_assembly(ir)
