@@ -14,6 +14,6 @@ mod = llvm.parse_assembly(ir)
 mod.verify()
 
 print(mod.triple)
-print(mod.get_function("main"))
+print(mod.get_function("main_main"))
 
 llvm.shutdown()
