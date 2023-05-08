@@ -48,7 +48,7 @@ build/main.o.ll: debug/main.go build # TODO maybe change to main.ll
 	build/miniGo debug/main.go -o build/main.o.ll
 
 .PHONY: silent
-silent: CFLAGS+=$(SILENTFLAG)
+silent: CFLAGS+=$(SILENTFLAG) build
 silent: build
 
 .PHONY: ll

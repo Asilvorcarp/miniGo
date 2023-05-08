@@ -1,15 +1,16 @@
 *.DS_Store
+
 /build
 
 *.out
 *.yy.*
 *.tab.*
 *.output
+*.bin
 *.exe
 *.o.*
-build/miniGo
+*.temp.*
 
-*.temp.in
 tests/runtime.go
 
 .env
