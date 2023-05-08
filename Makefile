@@ -102,8 +102,11 @@ GO_SRCS=$(filter-out tests/Runtime.go, $(wildcard tests/*.go))
 MINI_BINS=$(patsubst tests/%.go, build/%.bin, $(GO_SRCS))
 GO_BINS=$(patsubst tests/%.go, build/%.Go.bin, $(GO_SRCS))
 
+.PHONY: mini_build
+mini_build: $(MINI_BINS)
+
 .PHONY: tests
-tests: $(MINI_BINS)
+tests: mini_build
 	@for test_file in tests/*.go; do \
 		base_name=$$(basename $$test_file .go); \
 		if [ $$base_name != "Runtime" ]; then \
@@ -176,22 +179,17 @@ diff: tests go_tests
 
 # time tests on both go and miniGo generated executables
 .PHONY: time
-time:
-	# @time $(EXEC1) < $(INPUT) > /dev/null
+time: mini_build go_build
 	@for test_file in tests/*.go; do \
 		base_name=$$(basename $$test_file .go); \
 		if [ $$base_name != "Runtime" ]; then \
 			echo " > Running test: $$base_name"; \
-			build/miniGo $$test_file -o build/$$base_name.o.ll; \
-			$(call CLANG_LINK,$$base_name); \
 			for input_file in tests/$$base_name/*.in; do \
 				echo " - Input file: $$input_file"; \
-				output_file=$${input_file%.in}.out; \
-				./build/$$base_name.out < $$input_file > $$output_file |exit 1; \
-				if [ $(SHOW_TEST_OUTPUT) -eq 1 ]; then \
-					echo " - Output:"; \
-					cat $$output_file; \
-				fi; \
+				echo " - Time of build/$$base_name.bin"; \
+				time build/$$base_name.bin < $$input_file > /dev/null; \
+				echo " - Time of build/$$base_name.Go.bin"; \
+				time build/$$base_name.Go.bin < $$input_file > /dev/null; \
 			done; \
 		fi \
 	done
