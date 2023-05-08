@@ -150,9 +150,10 @@ diff: tests go_tests
 		fi \
 	done; \
 	if [ $$all_same = true ]; then \
-		echo "Pass All Tests!"; \
+		echo "All Tests Passed!"; \
 	else \
-		echo "There are differences between some output files and expected files!"; \
+		echo "Some of Tests Failed."; \
+		exit 1; \
 	fi
 
 in: main
