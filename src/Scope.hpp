@@ -72,10 +72,11 @@ class Scope {
 };
 
 // the runtime functions
+// here, i8* stands for void* or opaque pointer
 const static string Header = R"(
 target triple = "x86_64-pc-linux-gnu"
 
-declare ptr @malloc(i32)
+declare i8* @malloc(i32)
 declare i32 @getchar()
 declare i32 @putchar(i32)
 )";

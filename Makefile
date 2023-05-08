@@ -74,7 +74,7 @@ gdb: build
 # from .ll to .bin
 build/%.bin: build/%.o.ll # TODO maybe change to .mini.out
 	@echo "--- Build Bin ---"
-	clang $< -o $@ -mllvm -opaque-pointers
+	clang $< -o $@
 
 .PHONY: main
 main: build/main.bin
