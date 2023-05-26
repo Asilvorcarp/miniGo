@@ -895,6 +895,7 @@ class Compiler {
             stringstream sub;
             if (returnType == "void") {
                 localName = "";
+                sub << localName;
             } else {
                 localName = genId();
                 sub << localName << " = ";
