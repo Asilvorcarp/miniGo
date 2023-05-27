@@ -212,6 +212,16 @@ win-test: win
 	# call pwsh now!
 	/mnt/d/Pros/PowerShell/7/pwsh.exe -c 'cd D:\Win\study\fc\project\go\ && ./test.ps1'
 
+build/main.x86_64.s: ll
+	llc -march=x86-64 -filetype=asm build/main.o.ll -o build/main.x86_64.s
+
+.PHONY: asm ll2asm asm2bin
+asm: build/main.x86_64.s
+ll2asm:
+	llc -march=x86-64 -filetype=asm build/main.o.ll -o build/main.x86_64.s -O0
+asm2bin:
+	gcc -o build/main.x86_64.bin build/main.x86_64.s
+
 .PHONY: clean
 clean:
 	@echo "--- Clean ---"

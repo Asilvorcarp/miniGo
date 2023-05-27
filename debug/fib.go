@@ -10,7 +10,7 @@ func fib(n int) int {
 func main() {
 	for i := 0; i < 20; i = i + 1 {
 		if n := fib(i); n <= 100 {
-			println(n)
+			// putint(n)
 		}
 	}
 }

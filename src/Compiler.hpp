@@ -354,17 +354,17 @@ class Compiler {
             auto re1 = scope;
             enterScope();
             ss << labelSuffix++;
-            auto forInit = genLabelId("for.init" + ss.str());
+            // auto forInit = genLabelId("for.init" + ss.str());
             auto forCond = genLabelId("for.cond" + ss.str());
             auto forPost = genLabelId("for.post" + ss.str());
             auto forBody = genLabelId("for.body" + ss.str());
             auto forEnd = genLabelId("for.end" + ss.str());
             // br for.init
-            os << "\tbr label %" << forInit << "\n";
+            // os << "\tbr label %" << forInit << "\n";
             auto re2 = scope;
             enterScope();
             {
-                os << "\n" << forInit << ":\n";
+                // os << "\n" << forInit << ":\n";
                 if (stmt2->init != nullptr &&
                     stmt2->init->type() != TType::EmptyStmtT) {
                     compileStmt(os, stmt2->init);
