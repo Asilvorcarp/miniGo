@@ -526,7 +526,7 @@ def codeGenForFunc(fn: ValueRef, showImg=True) -> List[str]:
             cmd = f"movq {rs}, {rd}"
             cmds = [cmd]
         else:
-            cmds = ["!!!TODO!!!"]
+            raise Exception(f"Unknown op: {op}")
         asm += [f'  #{str(i)}']
         asm += cmds
         print("  -", cmds)
