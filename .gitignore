@@ -11,7 +11,8 @@
 *.o.*
 *.temp.*
 
-backend/*.s
+backend_debug/*.s
+backend_debug/.gdbinit
 debug/main.go
 tests/runtime.go
 testers/

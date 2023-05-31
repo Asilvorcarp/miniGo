@@ -10,6 +10,10 @@
 # - .out  : output text file
 # - .in   : input text file
 # - .Go.* : Go official compiler output
+# - .s    : assembly code from my backend
+# - .llc.s: assembly code from llc
+# - .run  : executable file from my backend
+
 
 .PHONY: all
 all: build
@@ -35,7 +39,7 @@ build/miniGo.yy.cpp: folder src/miniGo.l $(HPP_FILES) $(CPP_FILES)
 	flex -o build/miniGo.yy.cpp src/miniGo.l
 
 build/miniGo.tab.hpp: src/miniGo.y build/miniGo.yy.cpp $(HPP_FILES) $(CPP_FILES)
-	bison -t src/miniGo.y -o build/miniGo.tab.hpp
+	bison -t src/miniGo.y -o build/miniGo.tab.hpp 2> /dev/null
 
 .PHONY: yacc
 yacc: build/miniGo.yy.cpp build/miniGo.tab.hpp
@@ -78,8 +82,10 @@ debugLL: ll
 gdb: build
 	gdb --args build/miniGo debug/main.go -o build/main.o.ll
 
+# TODO maybe change to .mini.out
 # from .ll to .bin
-build/%.bin: build/%.o.ll # TODO maybe change to .mini.out
+# TODO add my backend
+build/%.bin: build/%.o.ll 
 	@echo "--- Build Bin ---"
 	clang $< -o $@
 
@@ -107,11 +113,15 @@ diffMain : in
 
 GO_SRCS=$(filter-out tests/Runtime.go, $(wildcard tests/*.go))
 MINI_BINS=$(patsubst tests/%.go, build/%.bin, $(GO_SRCS))
-LLS=$(patsubst tests/%.go, build/%.o.ll, $(GO_SRCS))
 GO_BINS=$(patsubst tests/%.go, build/%.Go.bin, $(GO_SRCS))
+LLS=$(patsubst tests/%.go, build/%.o.ll, $(GO_SRCS))
+RUNS=$(patsubst tests/%.go, build/%.run, $(GO_SRCS))
 
 .PHONY: mini_build
 mini_build: $(MINI_BINS)
+
+.PHONY: runs
+runs: $(RUNS)
 
 .PHONY: lls
 lls: $(LLS)
@@ -126,6 +136,24 @@ tests: mini_build
 				echo " - Input file: $$input_file"; \
 				output_file=$${input_file%.in}.out; \
 				./build/$$base_name.bin < $$input_file > $$output_file |exit 1; \
+				if [ $(SHOW_TEST_OUTPUT) -eq 1 ]; then \
+					echo " - Output:"; \
+					cat $$output_file; \
+				fi; \
+			done; \
+		fi \
+	done
+
+.PHONY: run_tests
+run_tests: runs
+	@for test_file in tests/*.go; do \
+		base_name=$$(basename $$test_file .go); \
+		if [ $$base_name != "Runtime" ]; then \
+			echo " > Running test: $$base_name"; \
+			for input_file in tests/$$base_name/*.in; do \
+				echo " - Input file: $$input_file"; \
+				output_file=$${input_file%.in}.out; \
+				./build/$$base_name.run < $$input_file > $$output_file |exit 1; \
 				if [ $(SHOW_TEST_OUTPUT) -eq 1 ]; then \
 					echo " - Output:"; \
 					cat $$output_file; \
@@ -188,6 +216,33 @@ diff: tests go_tests
 		exit 1; \
 	fi
 
+.PHONY: run_diff
+run_diff: SHOW_TEST_OUTPUT=0
+run_diff: run_tests go_tests
+	@all_same=true; \
+	for test_file in tests/*.go; do \
+		base_name=$$(basename $$test_file .go); \
+		if [ $$base_name != "Runtime" ]; then \
+			echo " > On test: $$base_name"; \
+			for expected_file in tests/$$base_name/*.Go.out; do \
+				output_file=$${expected_file%.Go.out}.out; \
+				echo -n " - Diffing $$expected_file with $$output_file:"; \
+				diff --strip-trailing-cr $$expected_file $$output_file; \
+				if [ $$? -eq 0 ]; then \
+					echo " Pass."; \
+				else \
+					all_same=false; \
+				fi \
+			done; \
+		fi \
+	done; \
+	if [ $$all_same = true ]; then \
+		echo "All Tests Passed!"; \
+	else \
+		echo "Some of Tests Failed."; \
+		exit 1; \
+	fi
+
 # time tests on both go and miniGo generated executables
 .PHONY: time
 time: mini_build go_build
@@ -223,23 +278,40 @@ win-test: win
 	# call pwsh now!
 	/mnt/d/Pros/PowerShell/7/pwsh.exe -c 'cd D:\Win\study\fc\project\go\ && ./test.ps1'
 
-build/main.x86_64.s: ll
-	llc -march=x86-64 -filetype=asm build/main.o.ll -o build/main.x86_64.s -O0
-	./simplify.sh build/main.x86_64.s
+build/main.llc.s: ll
+	llc -march=x86-64 -filetype=asm build/main.o.ll -o build/main.llc.s -O0
+	./simplify.sh build/main.llc.s
 
-build/%.debug.s: build/%.debug.ll
+build/%.llc.s: build/%.debug.ll
 	@echo "--- Build Debug ASM ---"
 	llc -march=x86-64 -filetype=asm $< -o $@ -O0
 	./simplify.sh $@
 
+build/%.s: build/%.o.ll
+	@echo "--- Build ASM with My Backend---"
+	python src/Backend.py -f $< -o $@ > /dev/null
+
 .PHONY: asm ll2asm asm2bin deASM
-asm: build/main.x86_64.s
+asm: build/main.llc.s
 ll2asm:
-	llc -march=x86-64 -filetype=asm build/main.o.ll -o build/main.x86_64.s -O0
-	./simplify.sh build/main.x86_64.s
+	llc -march=x86-64 -filetype=asm build/main.o.ll -o build/main.llc.s -O0
+	./simplify.sh build/main.llc.s
 asm2bin:
-	gcc -o build/main.x86_64.bin build/main.x86_64.s
-deASM: build/$(A).debug.s
+	gcc -o build/main.llc.bin build/main.llc.s
+deASM: build/$(A).llc.s
+
+.PHONY: getS
+getS: build/$(A).s
+
+build/%.run: build/%.s
+	@echo "--- Build Executable ---"
+	gcc $< -o $@
+
+.PHONY: getRun run
+getRun: build/$(A).run
+run: getRun
+	@echo "--- Run ---"
+	./build/$(A).run
 
 .PHONY: clean
 clean:
