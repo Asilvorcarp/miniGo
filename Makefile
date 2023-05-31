@@ -107,10 +107,14 @@ diffMain : in
 
 GO_SRCS=$(filter-out tests/Runtime.go, $(wildcard tests/*.go))
 MINI_BINS=$(patsubst tests/%.go, build/%.bin, $(GO_SRCS))
+LLS=$(patsubst tests/%.go, build/%.o.ll, $(GO_SRCS))
 GO_BINS=$(patsubst tests/%.go, build/%.Go.bin, $(GO_SRCS))
 
 .PHONY: mini_build
 mini_build: $(MINI_BINS)
+
+.PHONY: lls
+lls: $(LLS)
 
 .PHONY: tests
 tests: mini_build

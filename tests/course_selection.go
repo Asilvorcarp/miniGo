@@ -15,7 +15,6 @@ package main
 // }
 
 // cat debug/course_selection.temp.in | go run debug/course_selection.go
-var debug int = 0
 
 // fmt.Scanf("%d", &n)
 func getInt() int {
@@ -404,6 +403,7 @@ func putIndent(indent int) {
 
 // for debug info output
 func putIndentCC(ind int, x int, c1 int, c2 int) {
+	var debug int = 0
 	if debug == 1 {
 		putIndent(ind)
 		if c1 == '}' {
