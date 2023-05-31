@@ -13,5 +13,6 @@
 
 debug/main.go
 tests/runtime.go
+testers/
 
 .env
