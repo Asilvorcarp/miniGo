@@ -10,7 +10,6 @@ import argparse
 
 # TODO:
 # 1. support global
-# 2. why is there diff in matrix 1.in
 
 class Graph:
     def __init__(self):
@@ -338,7 +337,6 @@ def codeGenForFunc(fn: ValueRef, showImg=True) -> List[str]:
             rs1 = toR(regs[0])
             rs2 = toR(regs[1])
             rd = toR(i)
-            # TODO check for other cases!
             # do not overwrite rs2
             if rd == rs2:
                 rs1, rs2 = rs2, rs1
@@ -566,6 +564,16 @@ def ll2asm(inFile, outFile, showImg=True):
     asms = codeGen(inFile, showImg)
     flat = '\t.text\n'
     flat += '\n'.join(['\n'.join(x + ['']) for x in asms])
+    flat += '\n.section	".note.GNU-stack","",@progbits\n'
+    # some simple optimization
+    rm = []
+    for line in flat.split('\n'):
+        if line.startswith('movq'):
+            if line.split()[1][:-1] == line.split()[2]:
+                rm += [line]
+    for line in rm:
+        flat = flat.replace(line+'\n', '')
+    # write to file
     with open(outFile, 'w') as f:
         f.write(flat)
 
