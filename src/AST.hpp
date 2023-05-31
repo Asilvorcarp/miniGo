@@ -336,7 +336,7 @@ class BTypeAST : public BaseAST {
     string info() const override {
         string ret;
         if (elementType == "int") {
-            ret = "i32";
+            ret = "i64";
         } else if (elementType == "void") {
             return "void";
         } else {

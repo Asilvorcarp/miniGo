@@ -66,7 +66,7 @@ class Compiler {
     }
 
     void genDefaultInit(ostream& os, string varType, string varMName) {
-        if (varType == "i32") {
+        if (varType == "i64") {
             // may include i64 in the future
             os << "\tstore " << varType << " 0, " << increaseDim(varType) << " "
                << varMName << "\n";
@@ -228,8 +228,8 @@ class Compiler {
             // ensure ret
             auto retType = fn->getRetType();
             if (!hasRet) {
-                if (retType == "i32") {
-                    os << "\tret i32 0\n";
+                if (retType == "i64") {
+                    os << "\tret i64 0\n";
                 } else if (retType == "void") {
                     os << "\tret void\n";
                 } else {
@@ -442,18 +442,18 @@ class Compiler {
                 assert(false);
             }
             auto varMName = obj->MangledName;
-            if (obj->Node->info() != "i32") {
+            if (obj->Node->info() != "i64") {
                 // TODO not support a[x]++
                 cerr << "IncDecStmt: not support array" << endl;
                 assert(false);
             }
             auto val = genId();
-            os << "\t" << val << " = load i32, i32* " << varMName
+            os << "\t" << val << " = load i64, i64* " << varMName
                << ", align 4\n";
             auto newVal = genId();
-            os << "\t" << newVal << " = " << op << " i32 " << val << ", "
+            os << "\t" << newVal << " = " << op << " i64 " << val << ", "
                << "1" << endl;
-            os << "\tstore i32 " << newVal << ", i32* " << varMName
+            os << "\tstore i64 " << newVal << ", i64* " << varMName
                << ", align 4\n";
         } else {
             cerr << "unknown stmt type" << endl;
@@ -522,7 +522,7 @@ class Compiler {
                     auto& idxExp = tar->indexList->at(j);
                     auto idxName = compileExpr(os, idxExp);
                     // assert idxExp is int, type checking
-                    if (inferType(idxExp) != "i32") {
+                    if (inferType(idxExp) != "i64") {
                         cerr << "compileStmt_assign: index expression is "
                                 "not int"
                              << endl;
@@ -536,7 +536,7 @@ class Compiler {
                     string redCurType = reduceDim(curType);
                     os << "\t" << nextPtrName << " = getelementptr inbounds "
                        << redCurType << ", " << curType << " " << ptrValName
-                       << ", i32 " << idxName << "\n";
+                       << ", i64 " << idxName << "\n";
                     ptrName = nextPtrName;
                     curType = redCurType;
                 }
@@ -583,7 +583,7 @@ class Compiler {
                     auto& idxExp = exp->indexList->at(j);
                     auto idxName = compileExpr(os, idxExp);
                     // assert idxExp is int, type checking
-                    if (inferType(idxExp) != "i32") {
+                    if (inferType(idxExp) != "i64") {
                         cerr << "compileExpr: index expression is not int"
                              << endl;
                         assert(false);
@@ -596,7 +596,7 @@ class Compiler {
                     string redCurType = reduceDim(curType);
                     os << "\t" << nextPtrName << " = getelementptr inbounds "
                        << redCurType << ", " << curType << " " << ptrValName
-                       << ", i32 " << idxName << "\n";
+                       << ", i64 " << idxName << "\n";
                     ptrName = nextPtrName;
                     curType = redCurType;
                 }
@@ -613,7 +613,7 @@ class Compiler {
             localName = genId();
             os << "\t" << localName << " = "
                << "add"
-               << " i32 "
+               << " i64 "
                << "0"
                << ", " << exp->num << endl;
             return localName;
@@ -634,7 +634,7 @@ class Compiler {
                 clog << ">> done right" << endl;
             }
             // assert one direction of typeMatch is true
-            // e.g. i32*<-nil, i32*->nil
+            // e.g. i64*<-nil, i64*->nil
             bool isMatch = typeMatch(leftType, rightType) ||
                            typeMatch(rightType, leftType);
             if (!isMatch) {
@@ -658,12 +658,13 @@ class Compiler {
                 }
             }
             // result cannot be nil (if both nil), just return true
-            if(finalType == "nil") {
+            if (finalType == "nil") {
                 os << "\t" << localName << " = "
                    << "add"
-                   << " i32 "
+                   << " i64 "
                    << "0"
-                   << ", " << "1" << endl;
+                   << ", "
+                   << "1" << endl;
                 return localName;
             }
             switch (exp->op) {
@@ -760,7 +761,7 @@ class Compiler {
                 auto child = compileExpr(os, exp->p);
                 os << "\t" << localName << " = "
                    << "sub"
-                   << " i32 "
+                   << " i64 "
                    << "0"
                    << ", " << child << endl;
                 return localName;
@@ -773,12 +774,12 @@ class Compiler {
             auto exp = reinterpret_cast<MakeExpAST*>(expr);
             auto varType = exp->info();
             // assert varType is array
-            if (varType == "i32") {
+            if (varType == "i64") {
                 cerr << "compileExpr: make type is not array" << endl;
                 assert(false);
             }
             // assert len is int, maybe error while eval-ing
-            if (inferType(exp->len) != "i32") {
+            if (inferType(exp->len) != "i64") {
                 cerr << "compileExpr: make len must be int" << endl;
                 assert(false);
             }
@@ -786,25 +787,28 @@ class Compiler {
             auto localName = genId();
             {  // alloca on stack
                 // os << "\t" << localName << " = "
-                //    << "alloca " << varType << ", i32 " << lenLocal
+                //    << "alloca " << varType << ", i64 " << lenLocal
                 //    << ", align 4" << endl;
             }
             // alloca on heap, call malloc
             // get size of element type
-            auto elemSize = "8";  // ptr in x86_64 machine
-            if (reduceDim(varType) == "i32") {
-                elemSize = "4";  // int in x86_64 machine
+            auto elemType = reduceDim(varType);
+            auto elemSize = 8;  // ptr in x86_64 machine
+            if (elemType == "i64") {
+                elemSize = 8; // x64
+            } else if (elemType == "i32"){
+                elemSize = 4; // int
             }
             // get size of array
             auto sizeLocal = genId();
             os << "\t" << sizeLocal << " = "
                << "mul"
-               << " i32 " << lenLocal << ", " << elemSize << endl;
+               << " i64 " << lenLocal << ", " << to_string(elemSize) << endl;
             // call malloc which returns i8*
             auto i8pName = genId();
             auto i8pType = "i8*";
             os << "\t" << i8pName << " = "
-               << "call noalias " << i8pType << " @malloc(i32 " << sizeLocal
+               << "call noalias " << i8pType << " @malloc(i64 " << sizeLocal
                << ")" << endl;
             // convert the ptr type with bitcast
             os << "\t" << localName << " = "
@@ -815,22 +819,24 @@ class Compiler {
             auto exp = reinterpret_cast<ArrayExpAST*>(expr);
             auto varType = exp->info();
             // assert varType is array
-            if (varType == "i32") {
+            if (varType == "i64") {
                 cerr << "compileExpr: array exp type is not array" << endl;
                 assert(false);
             }
             auto localName = genId();
             {  // alloca on stack
                 // os << "\t" << localName << " = "
-                //    << "alloca " << varType << ", i32 " << elemNum
+                //    << "alloca " << varType << ", i64 " << elemNum
                 //    << ", align 4" << endl;
             }
             // alloca on heap, call malloc
             // get size of element type
             auto elemType = reduceDim(varType);
             auto elemSize = 8;  // ptr in x86_64 machine
-            if (elemType == "i32") {
-                elemSize = 4;  // int in x86_64 machine
+            if (elemType == "i64") {
+                elemSize = 8;  // x64
+            } else if (elemType == "i32") {
+                elemSize = 4;  // int
             }
             // get size of array
             int elemNum = exp->initValList->size();
@@ -839,7 +845,7 @@ class Compiler {
             auto i8pName = genId();
             auto i8pType = "i8*";
             os << "\t" << i8pName << " = "
-               << "call noalias " << i8pType << " @malloc(i32 "
+               << "call noalias " << i8pType << " @malloc(i64 "
                << to_string(arrSize) << ")" << endl;
             // convert the ptr type with bitcast
             os << "\t" << localName << " = "
@@ -850,7 +856,7 @@ class Compiler {
                 auto initValLocal = compileExpr(os, exp->initValList->at(i));
                 auto initValType = inferType(exp->initValList->at(i));
                 // check type
-                if(!typeMatch(elemType, initValType)) {
+                if (!typeMatch(elemType, initValType)) {
                     cerr << "compileExpr: array exp type mismatch" << endl;
                     assert(false);
                 }
@@ -859,7 +865,7 @@ class Compiler {
                 // here varType is usually elemType*
                 os << "\t" << elemPtrLocal << " = "
                    << "getelementptr inbounds " << elemType << ", " << varType
-                   << " " << localName << ", i32 " << idxLocal << endl;
+                   << " " << localName << ", i64 " << idxLocal << endl;
                 os << "\t"
                    << "store " << elemType << " " << initValLocal << ", "
                    << increaseDim(elemType) << " " << elemPtrLocal << endl;
@@ -931,8 +937,8 @@ class Compiler {
 
     // reduce dimension of array type
     // TODO test this
-    // change "[5 x [4 x i32]]" to "[4 x i32]"
-    // change "i32**" to "i32*"
+    // change "[5 x [4 x i64]]" to "[4 x i64]"
+    // change "i64**" to "i64*"
     string reduceDim(string t) {
         int i = 0;
         while (i < t.size() && t[i] != 'x') i++;
@@ -967,10 +973,8 @@ class Compiler {
     }
 
     // increase dimension of array type
-    // support only pointer now (not like [5 x [4 x i32]])
-    string increaseDim(string t) {
-        return t + "*";
-    }
+    // support only pointer now (not like [5 x [4 x i64]])
+    string increaseDim(string t) { return t + "*"; }
 
     // whether a type is a pointer type
     bool isPtr(string t) { return t.find("*") != string::npos || t == "nil"; }
@@ -992,7 +996,7 @@ class Compiler {
     string inferType(const pAST& _expr) {
         auto expr = reinterpret_cast<ExpAST*>(_expr.get());
         if (expr->type() == TType::NumberT) {
-            return "i32";
+            return "i64";
         } else if (expr->type() == TType::BinExpT) {
             auto exp = reinterpret_cast<BinExpAST*>(expr);
             auto left = inferType(exp->left);

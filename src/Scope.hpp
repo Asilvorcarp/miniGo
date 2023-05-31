@@ -63,10 +63,10 @@ class Scope {
         // no malloc because it is called by make()
         universe->Insert(
             new Object("getchar", "@getchar",
-                       new RuntimeFuncAST("i32", new vector<string>())));
+                       new RuntimeFuncAST("i64", new vector<string>())));
         universe->Insert(
             new Object("putchar", "@putchar",
-                       new RuntimeFuncAST("i32", new vector<string>{"i32"})));
+                       new RuntimeFuncAST("i64", new vector<string>{"i64"})));
         return universe;
     }
 };
@@ -76,15 +76,15 @@ class Scope {
 const static string Header = R"(
 target triple = "x86_64-pc-linux-gnu"
 
-declare i8* @malloc(i32)
-declare i32 @getchar()
-declare i32 @putchar(i32)
+declare i8* @malloc(i64)
+declare i64 @getchar()
+declare i64 @putchar(i64)
 )";
 
 const string MainMain = R"(
-define i32 @main() {
+define i64 @main() {
 	call void() @main_init()
 	call void() @main_main()
-	ret i32 0
+	ret i64 0
 }
 )";

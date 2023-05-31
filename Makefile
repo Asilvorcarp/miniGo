@@ -47,6 +47,10 @@ build/miniGo: src/main.cpp yacc
 .PHONY: build
 build: build/miniGo
 
+build/%.debug.ll: debug/%.go build
+	@echo "--- Build Debug LL ---"
+	build/miniGo $< -o $@
+
 # from .go to .ll
 build/%.o.ll: tests/%.go build
 	@echo "--- Build LL ---"
@@ -62,6 +66,9 @@ silent: build
 
 .PHONY: ll
 ll: build/main.o.ll
+
+.PHONY: deLL
+deLL: build/$(A).debug.ll
 
 .PHONY: debugLL
 debugLL: CFLAGS+=$(DEBUGFLAG)
@@ -216,13 +223,19 @@ build/main.x86_64.s: ll
 	llc -march=x86-64 -filetype=asm build/main.o.ll -o build/main.x86_64.s -O0
 	./simplify.sh build/main.x86_64.s
 
-.PHONY: asm ll2asm asm2bin
+build/%.debug.s: build/%.debug.ll
+	@echo "--- Build Debug ASM ---"
+	llc -march=x86-64 -filetype=asm $< -o $@ -O0
+	./simplify.sh $@
+
+.PHONY: asm ll2asm asm2bin deASM
 asm: build/main.x86_64.s
 ll2asm:
 	llc -march=x86-64 -filetype=asm build/main.o.ll -o build/main.x86_64.s -O0
 	./simplify.sh build/main.x86_64.s
 asm2bin:
 	gcc -o build/main.x86_64.bin build/main.x86_64.s
+deASM: build/$(A).debug.s
 
 .PHONY: clean
 clean:
