@@ -291,6 +291,10 @@ build/%.s: build/%.o.ll
 	@echo "--- Build ASM with My Backend---"
 	python src/Backend.py -f $< -o $@ > /dev/null
 
+build/%.s: build/%.debug.ll
+	@echo "--- Build ASM with My Backend---"
+	python src/Backend.py -f $< -o $@ > backend.temp.log
+
 .PHONY: asm ll2asm asm2bin deASM
 asm: build/main.llc.s
 ll2asm:

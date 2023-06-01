@@ -1,4 +1,5 @@
 # %%
+import os
 import llvmlite.binding as llvm
 import copy
 from random import choice
@@ -10,6 +11,7 @@ import argparse
 
 # TODO:
 # 1. support global
+
 
 class Graph:
     def __init__(self):
@@ -111,7 +113,7 @@ def restore() -> List[str]:
     return [f"popq %r{x}" for x in range(8, 16)][::-1]
 
 
-def codeGenForFunc(fn: ValueRef, showImg=True) -> List[str]:
+def codeGenForFunc(fn: ValueRef, globalNames: List[str], showImg=True) -> List[str]:
     funcName = fn.name
     print("codeGenForFunc", funcName)
 
@@ -290,9 +292,12 @@ def codeGenForFunc(fn: ValueRef, showImg=True) -> List[str]:
         print("toR", reg)  # debug
         if 'i32' in reg or 'i64' in reg:
             _, n = reg.split(' ')
-            if n=='null':
+            if n == 'null':
                 return '$0'
             return f"${n}"
+        elif deRefer and reg in globalNames:
+            # note: this is a ptr, caller should derefer it
+            return f"{reg}@GOTPCREL(%rip)"
         elif '.arg' in reg:
             X, n = reg.split('.arg')
             n = int(n)
@@ -437,13 +442,19 @@ def codeGenForFunc(fn: ValueRef, showImg=True) -> List[str]:
             if '(%rbp)' in rs:
                 # arg4+, in stack, no need to store
                 cmds = []
+            elif '@GOTPCREL' in rd:
+                # global var, deRefer here
+                cmds = [f"movq {rd}, %rax", f"movq {rs}, (%rax)"]
             else:
                 cmds = [f"movq {rs}, {rd}"]
         elif op == 'load':
             rd = toR(i)
             rs = toR(regs[0], True)
-            cmd = f'movq {rs}, {rd}'
-            cmds = [cmd]
+            if '@GOTPCREL' in rs:
+                # global var, deRefer here
+                cmds = [f"movq {rs}, %rax", f"movq (%rax), {rd}"]
+            else:
+                cmds = [f'movq {rs}, {rd}']
         elif op == 'icmp':
             # slt, ...
             exactType = str(i).split('icmp ')[1].split()[0]
@@ -543,6 +554,24 @@ def codeGenForFunc(fn: ValueRef, showImg=True) -> List[str]:
     return asm
 
 
+def codeGenForGlobalVar(gv: ValueRef) -> List[str]:
+    asm = []
+    asm += [f"\t.globl	{gv.name}"]
+    # asm += [f"\t.size	{gv.name}, 8"]
+    asm += [f"{gv.name}:"]
+    initializer = '0'
+    type_str = str(gv.type)
+    if type_str == 'i64*':
+        asm += [f"\t.quad	{initializer}"]
+    elif type_str == 'i32*':
+        asm += [f"\t.long	{initializer}"]
+    elif type_str == 'i8*':
+        asm += [f"\t.byte	{initializer}"]
+    else:
+        raise Exception(f"Unknown global type: {type_str}")
+    return asm
+
+
 def codeGen(fileName: str, showImg=True) -> List[List[str]]:
     llvm.initialize()
     ir = open(fileName).read()
@@ -551,18 +580,33 @@ def codeGen(fileName: str, showImg=True) -> List[List[str]]:
     mod.verify()
     print(mod.triple)
     asms = []
+    # get basename of fileName
+    basename = os.path.basename(fileName)
+    asms.append([f"\t.file	\"{basename}\""])
+    globalNames = []
+    bss = []
+    bss.append([f"\t.bss"])
+    for globalVar in mod.global_variables:
+        if globalVar.is_declaration:
+            continue
+        asm = codeGenForGlobalVar(globalVar)
+        bss.append(asm)
+        globalNames.append(globalVar.name)
+    text = []
+    text.append([f"\t.text"])
     for fn in mod.functions:
         if fn.is_declaration:
             continue
-        asm = codeGenForFunc(fn, showImg)
-        asms.append(asm)
+        asm = codeGenForFunc(fn, globalNames, showImg)
+        text.append(asm)
     # llvm.shutdown()
+    asms += text + bss
     return asms
 
 
 def ll2asm(inFile, outFile, showImg=True):
     asms = codeGen(inFile, showImg)
-    flat = '\t.text\n'
+    flat = ''
     flat += '\n'.join(['\n'.join(x + ['']) for x in asms])
     flat += '\n.section	".note.GNU-stack","",@progbits\n'
     # some simple optimization
@@ -579,6 +623,7 @@ def ll2asm(inFile, outFile, showImg=True):
 
 # %%
 
+
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description="The Backend of the Compiler")
@@ -594,6 +639,3 @@ if __name__ == "__main__":
     ll2asm(input_file, output_file, showImg=False)
 
 # %%
-
-
-
