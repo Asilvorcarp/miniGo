@@ -109,9 +109,7 @@ PackClause : PACKAGE IDENT {
 // TODO: void func type, param list
 
 Param : IDENT BType {
-    auto ast = new ParamAST();
-    ast->ident = *unique_ptr<string>($1);
-    ast->t = pAST($2);
+    auto ast = new ParamAST($1, $2);
     $$ = ast;
 };
 
@@ -128,11 +126,7 @@ ParamList : /* empty */ {
 };
 
 FuncDef : FUNC IDENT '(' ParamList ')' ReturnType Block {
-    auto ast = new FuncDefAST();
-    ast->ident = *unique_ptr<string>($2);
-    ast->paramList = pvpAST($4);
-    ast->retType = pAST($6);
-    ast->body = pAST($7);
+    auto ast = new FuncDefAST($2, $4, $6, $7);
     $$ = ast;
 };
 
@@ -143,8 +137,7 @@ ReturnType : /* empty */ {
 } | BType;
 
 Block : '{' StmtList '}' {
-    auto ast = new BlockAST();
-    ast->stmts = pvpAST($2);
+    auto ast = new BlockAST($2);
     $$ = ast;
 };
 
@@ -162,26 +155,19 @@ StmtList : /* empty */ {
 };
 
 ExpStmt : Exp {
-    auto ast = new ExpStmtAST();
-    ast->exp = pAST($1);
+    auto ast = new ExpStmtAST($1);
     $$ = ast;
 };
 IncDecStmt : LVal INC {
-    auto ast = new IncDecStmtAST();
-    ast->target = pAST($1);
-    ast->isInc = true;
+    auto ast = new IncDecStmtAST($1, true);
     $$ = ast;
 } | LVal DEC {
-    auto ast = new IncDecStmtAST();
-    ast->target = pAST($1);
-    ast->isInc = false;
+    auto ast = new IncDecStmtAST($1, false);
     $$ = ast;
 };
 // TODO maybe combine it with ShortVarDecl
 AssignStmt : LVals '=' InitVals {
-    auto ast = new ShortVarDeclAST();
-    ast->targets = pvpAST($1);
-    ast->initVals = pvpAST($3);
+    auto ast = new ShortVarDeclAST(false, $1, $3);
     $$ = ast;
 } | LVal BIN_ASSIGN InitVal {
     char op = (*$2)[0];
@@ -189,10 +175,7 @@ AssignStmt : LVals '=' InitVals {
 };
 // i, j := 0, 10
 ShortVarDecl : LVals DEFINE InitVals {
-    auto ast = new ShortVarDeclAST();
-    ast->targets = pvpAST($1);
-    ast->initVals = pvpAST($3);
-    ast->isDefine = true;
+    auto ast = new ShortVarDeclAST(true, $1, $3);
     $$ = ast;
 };
 SimpleStmt : /* empty stmt */ {$$ = new EmptyStmtAST();} 
@@ -211,87 +194,62 @@ Statement =
 */
 //IfStmt = "if" [ SimpleStmt ";" ] Expression Block [ "else" ( IfStmt | Block ) ] .
 IfStmt : IF Exp Block {
-    auto ast = new IfStmtAST();
-    ast->t = IfStmtAST::Type::If;
-    ast->cond = pAST($2);
-    ast->body = pAST($3);
+    auto ast = new IfStmtAST(
+        IfStmtAST::Type::If, nullptr, $2, $3, nullptr);
     $$ = ast;
 } | IF Exp Block ELSE Block {
-    auto ast = new IfStmtAST();
-    ast->t = IfStmtAST::Type::IfElse;
-    ast->cond = pAST($2);
-    ast->body = pAST($3);
-    ast->elseBlockStmt = pAST($5);
+    auto ast = new IfStmtAST(
+        IfStmtAST::Type::IfElse, nullptr, $2, $3, $5);
     $$ = ast;
 } | IF Exp Block ELSE IfStmt {
-    auto ast = new IfStmtAST();
-    ast->t = IfStmtAST::Type::IfElseIf;
-    ast->cond = pAST($2);
-    ast->body = pAST($3);
-    ast->elseBlockStmt = pAST($5);
+    auto ast = new IfStmtAST(
+        IfStmtAST::Type::IfElseIf, nullptr, $2, $3, $5);
     $$ = ast;
 } | IF SimpleStmt ';' Exp Block {
-    auto ast = new IfStmtAST();
-    ast->t = IfStmtAST::Type::If;
-    ast->init = pAST($2);
-    ast->cond = pAST($4);
-    ast->body = pAST($5);
+    auto ast = new IfStmtAST(
+        IfStmtAST::Type::If, $2, $4, $5, nullptr);
     $$ = ast;
 } | IF SimpleStmt ';' Exp Block ELSE Block {
-    auto ast = new IfStmtAST();
-    ast->t = IfStmtAST::Type::IfElse;
-    ast->init = pAST($2);
-    ast->cond = pAST($4);
-    ast->body = pAST($5);
-    ast->elseBlockStmt = pAST($7);
+    auto ast = new IfStmtAST(
+        IfStmtAST::Type::IfElse, $2, $4, $5, $7);
     $$ = ast;
 } | IF SimpleStmt ';' Exp Block ELSE IfStmt {
-    auto ast = new IfStmtAST();
-    ast->t = IfStmtAST::Type::IfElseIf;
-    ast->init = pAST($2);
-    ast->cond = pAST($4);
-    ast->body = pAST($5);
-    ast->elseBlockStmt = pAST($7);
+    auto ast = new IfStmtAST(
+        IfStmtAST::Type::IfElseIf, $2, $4, $5, $7);
     $$ = ast;
 };
 ReturnStmt : RETURN Exp {
-    auto ast = new ReturnStmtAST();
-    ast->exp = pAST($2);
+    auto ast = new ReturnStmtAST($2);
     $$ = ast;
 } | RETURN {
-    auto ast = new ReturnStmtAST();
+    auto ast = new ReturnStmtAST(nullptr);
     $$ = ast;
 };
 // BREAK, CONTINUE, GOTO
 BranchStmt : BREAK {
-    auto ast = new BranchStmtAST();
-    ast->t = BranchStmtAST::Type::Break;
+    auto ast = new BranchStmtAST(
+        BranchStmtAST::Type::Break);
     $$ = ast;
 } | CONTINUE {
-    auto ast = new BranchStmtAST();
-    ast->t = BranchStmtAST::Type::Continue;
+    auto ast = new BranchStmtAST(
+        BranchStmtAST::Type::Continue);
     $$ = ast;
 } | GOTO IDENT {
-    auto ast = new BranchStmtAST();
-    ast->t = BranchStmtAST::Type::Goto;
-    ast->ident = *unique_ptr<string>($2);
+    auto ast = new BranchStmtAST(
+        BranchStmtAST::Type::Goto, $2);
     $$ = ast;
 };
 ForStmt : FOR Block { // always
-    auto ast = new ForStmtAST();
-    ast->body = pAST($2);
+    auto ast = new ForStmtAST(
+        nullptr, nullptr, nullptr, $2);
     $$ = ast;
 } | FOR Exp Block { // while
-    auto ast = new ForStmtAST();
-    ast->cond = pAST($2);
-    ast->body = pAST($3);
+    auto ast = new ForStmtAST(
+        nullptr, $2, nullptr, $3);
     $$ = ast;
 } | FOR SimpleStmt ';' Exp ';' SimpleStmt Block { // for
-    auto ast = new ForStmtAST();
-    ast->init = pAST($2);
-    ast->cond = pAST($4);
-    ast->post = pAST($6);
-    ast->body = pAST($7);
+    auto ast = new ForStmtAST(
+        $2, $4, $6, $7);
     $$ = ast;
 };
 Stmt : Decl | IfStmt | ReturnStmt | SimpleStmt | ForStmt | Block | BranchStmt ;
@@ -316,9 +274,7 @@ IDs : IDENT {
 };
 // initVal can be exp, array exp, make exp
 InitVal : BType '{' InitValList '}' {
-    auto ast = new ArrayExpAST();
-    ast->t = pAST($1);
-    ast->initValList = pvpAST($3);
+    auto ast = new ArrayExpAST($1, $3);
     $$ = ast;
 } | MAKE '(' BType ',' Exp ')' {
     $$ = new MakeExpAST($3, $5);
@@ -351,20 +307,13 @@ VarDecl : VAR VarSpec {
     $$ = $2;
 };
 VarSpec : IDs BType '=' InitVals {
-    auto ast = new VarSpecAST();
-    ast->idents = pvStr($1);
-    ast->btype = pAST($2);
-    ast->initVals = pvpAST($4);
+    auto ast = new VarSpecAST($1, $2, $4);
     $$ = ast;
 }| IDs '=' InitVals {
-    auto ast = new VarSpecAST();
-    ast->idents = pvStr($1);
-    ast->initVals = pvpAST($3);
+    auto ast = new VarSpecAST($1, nullptr, $3);
     $$ = ast;
 }| IDs BType {
-    auto ast = new VarSpecAST();
-    ast->idents = pvStr($1);
-    ast->btype = pAST($2);
+    auto ast = new VarSpecAST($1, $2, nullptr);
     $$ = ast;
 };
 ConstDecl : CONST ConstSpec {
@@ -399,9 +348,7 @@ Number : INT_CONST | CHAR_CONST {
 };
 Exp : LOrExp;
 LVal : IDENT {
-    auto ast = new LValAST();
-    ast->ident = *unique_ptr<string>($1);
-    ast->indexList = make_unique<vpAST>();
+    auto ast = new LValAST($1, nullptr);
     $$ = ast;
 } | LVal '[' Exp ']' {
     auto ast = $1;

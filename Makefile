@@ -51,13 +51,12 @@ build/miniGo: src/main.cpp yacc
 .PHONY: build
 build: build/miniGo
 
-build/%.debug.ll: debug/%.go build
-	@echo "--- Build Debug LL ---"
-	build/miniGo $< -o $@
-
 # from .go to .ll
 build/%.o.ll: tests/%.go build
 	@echo "--- Build LL ---"
+	build/miniGo $< -o $@
+build/%.o.ll: debug/%.go build
+	@echo "--- Build Debug LL ---"
 	build/miniGo $< -o $@
 
 build/main.o.ll: debug/main.go build
@@ -70,13 +69,6 @@ silent: build
 
 .PHONY: ll
 ll: build/main.o.ll
-
-.PHONY: deLL
-deLL: build/$(A).debug.ll
-
-.PHONY: debugLL
-debugLL: CFLAGS+=$(DEBUGFLAG)
-debugLL: ll
 
 .PHONY: gdb
 gdb: build
@@ -166,9 +158,15 @@ run_tests: runs
 
 build/%.Go.bin: tests/%.go tests/Runtime.go
 	go build -o $@ $< tests/Runtime.go
+build/%.Go.bin: debug/%.go debug/Runtime.go
+	go build -o $@ $< debug/Runtime.go
 
 .PHONY: go_build
 go_build: $(GO_BINS)
+
+.PHONY: go_run
+go_run: build/$(A).Go.bin
+	./build/$(A).Go.bin
 
 # get Go.out # TODO maybe change name (two right now)
 .PHONY: go_tests
@@ -282,7 +280,7 @@ build/main.llc.s: ll
 	llc -march=x86-64 -filetype=asm build/main.o.ll -o build/main.llc.s -O0
 	./simplify.sh build/main.llc.s
 
-build/%.llc.s: build/%.debug.ll
+build/%.llc.s: build/%.o.ll
 	@echo "--- Build Debug ASM ---"
 	llc -march=x86-64 -filetype=asm $< -o $@ -O0
 	./simplify.sh $@
@@ -291,7 +289,7 @@ build/%.s: build/%.o.ll
 	@echo "--- Build ASM with My Backend---"
 	python src/Backend.py -f $< -o $@ > /dev/null
 
-build/%.s: build/%.debug.ll
+build/%.s: build/%.o.ll
 	@echo "--- Build ASM with My Backend---"
 	python src/Backend.py -f $< -o $@ > backend.temp.log
 
@@ -304,18 +302,21 @@ asm2bin:
 	gcc -o build/main.llc.bin build/main.llc.s
 deASM: build/$(A).llc.s
 
-.PHONY: getS
-getS: build/$(A).s
-
 build/%.run: build/%.s
 	@echo "--- Build Executable ---"
 	gcc $< -o $@
 
-.PHONY: getRun run
+.PHONY: getLL getS getRun run
+getLL: build/$(A).o.ll
+getS: build/$(A).s
 getRun: build/$(A).run
 run: getRun
 	@echo "--- Run ---"
 	./build/$(A).run
+
+.PHONY: debugLL
+debugLL: CFLAGS+=$(DEBUGFLAG)
+debugLL: build/$(A).o.ll
 
 .PHONY: clean
 clean:

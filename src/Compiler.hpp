@@ -356,8 +356,8 @@ class Compiler {
             ss << labelSuffix++;
             // auto forInit = genLabelId("for.init" + ss.str());
             auto forCond = genLabelId("for.cond" + ss.str());
-            auto forPost = genLabelId("for.post" + ss.str());
             auto forBody = genLabelId("for.body" + ss.str());
+            auto forPost = genLabelId("for.post" + ss.str());
             auto forEnd = genLabelId("for.end" + ss.str());
             // br for.init
             // os << "\tbr label %" << forInit << "\n";
@@ -936,7 +936,6 @@ class Compiler {
     }
 
     // reduce dimension of array type
-    // TODO test this
     // change "[5 x [4 x i64]]" to "[4 x i64]"
     // change "i64**" to "i64*"
     string reduceDim(string t) {

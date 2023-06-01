@@ -34,22 +34,33 @@ enum class TType {
     UnaryExpT,
     ParenExpT,
     CallExpT,
-    // for future use
     RuntimeFuncT,
     MakeExpT,
     ArrayExpT,
-    NilT
+    NilT,
+    // for future use
+    _0,
+    _1,
+    _2,
+    _3,
+    _4,
 };
 
 // 所有 AST 的基类
 class BaseAST {
    public:
+    BaseAST *parent = nullptr;
     virtual ~BaseAST() = default;
     virtual TType type() const = 0;
     virtual json toJson() const = 0;
     friend ostream &operator<<(ostream &os, const BaseAST &ast) {
         return os << ast.toJson().dump(4);
     }
+    // set parent
+    void setParent(BaseAST *parent) { this->parent = parent; }
+    // get parent
+    BaseAST *getParent() { return parent; }
+    // some of AST implement this to add to its children
     virtual void add(BaseAST *ast){};
     // some of AST implement this to get type info
     virtual string info() const { return "base"; }
@@ -57,10 +68,13 @@ class BaseAST {
     virtual BaseAST *copy() const { return nullptr; }
 };
 
+using pT = BaseAST *;
 using pAST = unique_ptr<BaseAST>;
 using vpAST = vector<pAST>;
+using pvpT = vector<pAST> *;
 using pvpAST = unique_ptr<vpAST>;
 using pvStr = unique_ptr<vector<string>>;
+using pStr = unique_ptr<string>;
 
 class StmtAST : public BaseAST {};
 class ExpAST : public BaseAST {
@@ -74,6 +88,24 @@ class VarSpecAST : public BaseAST {
     pvStr idents;
     pAST btype = nullptr;  // maybe nullptr
     pvpAST initVals = make_unique<vpAST>();
+
+    VarSpecAST(vector<string> *idents, pT btype, pvpT initVals)
+        : idents(pvStr(idents)) {
+        if (btype == nullptr) {
+            this->btype = nullptr;
+        } else {
+            this->btype = pAST(btype);
+            btype->setParent(this);
+        }
+        if (initVals == nullptr) {
+            this->initVals = make_unique<vpAST>();
+        } else {
+            for (auto &initVal : *this->initVals) {
+                initVal->setParent(this);
+            }
+            this->initVals = pvpAST(initVals);
+        }
+    }
 
     // return "infer" if btype is nullptr (not specified in code)
     virtual string info() const override {
@@ -106,6 +138,19 @@ class FuncDefAST : public BaseAST {
     pvpAST paramList;
     pAST retType;  // BType
     pAST body;
+
+    FuncDefAST() = default;  // only for runtime func
+    FuncDefAST(string *ident, pvpT paramList, pT retType, pT body)
+        : ident(*pStr(ident)),
+          paramList(pvpAST(paramList)),
+          retType(pAST(retType)),
+          body(pAST(body)) {
+        for (auto &param : *this->paramList) {
+            param->setParent(this);
+        }
+        this->retType->setParent(this);
+        this->body->setParent(this);
+    }
 
     virtual string getRetType() {
         if (retType == nullptr) {
@@ -189,12 +234,16 @@ class CompUnitAST : public BaseAST {
 
     void setDefs(vpAST *topDeclList) {
         for (auto &topDef : *topDeclList) {
+            topDef.get()->setParent(this);
             if (topDef->type() == TType::VarSpecT) {
                 Globals.push_back(
                     unique_ptr<VarSpecAST>((VarSpecAST *)topDef.get()));
             } else if (topDef->type() == TType::FuncDefT) {
                 Funcs.push_back(
                     unique_ptr<FuncDefAST>((FuncDefAST *)topDef.get()));
+            } else {
+                cerr << "unknown topDef type" << endl;
+                assert(false);
             }
         }
     }
@@ -222,6 +271,12 @@ class ParamAST : public BaseAST {
     string ident;
     pAST t;  // BType
 
+    ParamAST(string *ident, BaseAST *t) {
+        this->ident = *pStr(ident);
+        this->t = pAST(t);
+        t->setParent(this);
+    }
+
     string info() const override { return t->info(); }
     TType type() const override { return ty; }
     json toJson() const override {
@@ -237,6 +292,12 @@ class BlockAST : public BaseAST {
    public:
     TType ty = TType::BlockT;
     pvpAST stmts;
+
+    BlockAST(pvpT stmts) : stmts(pvpAST(stmts)) {
+        for (auto &stmt : *stmts) {
+            stmt->setParent(this);
+        }
+    }
 
     TType type() const override { return ty; }
     json toJson() const override {
@@ -266,6 +327,14 @@ class ReturnStmtAST : public StmtAST {
     TType ty = TType::ReturnStmtT;
     pAST exp = nullptr;
 
+    ReturnStmtAST() = delete;
+    ReturnStmtAST(pT exp) {
+        if (exp != nullptr) {
+            this->exp = pAST(exp);
+            exp->setParent(this);
+        }
+    }
+
     // not valid, just tell if need to infer
     string info() const override {
         if (exp == nullptr) return "void";
@@ -287,7 +356,10 @@ class ParenExpAST : public ExpAST {
     TType ty = TType::ParenExpT;
     pAST p;
 
-    ParenExpAST(BaseAST *ast) { p = pAST(ast); }
+    ParenExpAST(BaseAST *ast) {
+        p = pAST(ast);
+        ast->setParent(this);
+    }
 
     int eval() const override {
         auto exp = reinterpret_cast<ExpAST *>(p.get());
@@ -387,6 +459,7 @@ class UnaryExpAST : public ExpAST {
 
     UnaryExpAST() = delete;
     UnaryExpAST(char _op, BaseAST *ast) {
+        ast->setParent(this);
         op = _op;
         p = pAST(ast);
     }
@@ -429,6 +502,10 @@ class CallExpAST : public ExpAST {
     CallExpAST(string *_funcName, vpAST *_argList) {
         funcName = *unique_ptr<string>(_funcName);
         argList = pvpAST(_argList);
+        // set parent
+        for (auto &arg : *argList) {
+            arg->setParent(this);
+        }
     }
 
     int eval() const override {
@@ -467,6 +544,28 @@ class ForStmtAST : public StmtAST {
     pAST cond = make_unique<NumberAST>(1);
     pAST post = make_unique<EmptyStmtAST>();
     pAST body;  // cannot be nullptr
+
+    ForStmtAST() = delete;
+    ForStmtAST(pT _init, pT _cond, pT _post, pT _body) {
+        if (_init == nullptr)
+            init = make_unique<EmptyStmtAST>();
+        else
+            init = pAST(_init);
+        if (_cond == nullptr)
+            cond = make_unique<NumberAST>(1);
+        else
+            cond = pAST(_cond);
+        if (_post == nullptr)
+            post = make_unique<EmptyStmtAST>();
+        else
+            post = pAST(_post);
+        body = pAST(_body);
+        // set parent
+        init.get()->setParent(this);
+        cond.get()->setParent(this);
+        post.get()->setParent(this);
+        body.get()->setParent(this);
+    }
 
     TType type() const override { return ty; }
     json toJson() const override {
@@ -540,6 +639,8 @@ class BinExpAST : public ExpAST {
             cerr << "BinExpAST: unknown char op" << endl;
             assert(false);
         }
+        ast1->setParent(this);
+        ast2->setParent(this);
         left = pAST(ast1);
         right = pAST(ast2);
     }
@@ -576,6 +677,8 @@ class BinExpAST : public ExpAST {
             cerr << "BinExpAST: unknown string op" << endl;
             assert(false);
         }
+        ast1->setParent(this);
+        ast2->setParent(this);
         left = pAST(ast1);
         right = pAST(ast2);
     }
@@ -637,15 +740,36 @@ class ShortVarDeclAST : public StmtAST {
     pvpAST targets = nullptr;
     pvpAST initVals = nullptr;
 
-    ShortVarDeclAST() = default;
+    ShortVarDeclAST() = delete;
+    ShortVarDeclAST(bool _isDefine, pvpT _targets, pvpT _initVals)
+        : isDefine(_isDefine), targets(pvpAST(_targets)), initVals(_initVals) {
+        for (auto &tar : *targets) {
+            tar->setParent(this);
+        }
+        for (auto &initVal : *initVals) {
+            initVal->setParent(this);
+        }
+    }
     // +=, -=, *=, /=, %=: only one target and one initVal
     ShortVarDeclAST(BaseAST *target, char _op, BaseAST *initVal) {
         isDefine = false;
+        cout << ">> FUCK" << endl;
+        target->setParent(this);
         targets = make_unique<vector<pAST>>();
         targets->push_back(pAST(target));
-        auto binInit = new BinExpAST(_op, target->copy(), initVal->copy());
+        cout << ">> FUCK2" << endl;
+        auto target2 = target->copy();
+        cout << ">> FUCK3" << endl;
+        auto initVal2 = initVal->copy();
+        cout << ">> FUCK33" << endl;
+        auto binInit = new BinExpAST(_op, target2, initVal2);
+        cout << ">> FUCK4" << endl;
+        binInit->setParent(this);
+        cout << ">> FUCK5" << endl;
         initVals = make_unique<vector<pAST>>();
+        cout << ">> FUCK6" << endl;
         initVals->push_back(pAST(binInit));
+        cout << ">> FUCK7" << endl;
     }
 
     TType type() const override { return ty; }
@@ -679,13 +803,29 @@ class LValAST : public ExpAST {
     // TODO support const
     // bool isConst = false;
 
+    LValAST(string *_ident, pvpT _indexList) : ident(*pStr(_ident)) {
+        if (_indexList == nullptr) {
+            indexList = make_unique<vpAST>();
+        } else {
+            for (auto &index : *indexList) {
+                index->setParent(this);
+            }
+            indexList = pvpAST(_indexList);
+        }
+    }
+    LValAST(string ident, pvpT list, string typeInfo) : ident(ident), typeInfo(typeInfo) {
+        indexList = pvpAST(list);
+        for (auto &index : *indexList) {
+            index->setParent(this);
+        }
+    }
     // store typeInfo as node in obj
     LValAST(string ident, string typeInfo) : ident(ident), typeInfo(typeInfo) {
         indexList = make_unique<vpAST>();
     }
-    LValAST() = default;
 
     void add(BaseAST *index) override {
+        index->setParent(this);
         if (indexList == nullptr) {
             // actually impossible
             indexList = make_unique<vpAST>();
@@ -693,14 +833,11 @@ class LValAST : public ExpAST {
         indexList->push_back(pAST(index));
     }
     BaseAST *copy() const override {
-        auto ret = new LValAST();
-        ret->ident = ident;
-        ret->indexList = make_unique<vpAST>();
+        auto list = new vpAST();
         for (auto &index : *indexList) {
-            ret->indexList->push_back(pAST(index->copy()));
+            list->push_back(pAST(index->copy()));
         }
-        ret->typeInfo = typeInfo;
-        return ret;
+        return new LValAST(ident, list, typeInfo);
     }
 
     int eval() const override {
@@ -744,10 +881,32 @@ class IfStmtAST : public StmtAST {
     TType ty = TType::IfStmtT;
     enum Type { If, IfElse, IfElseIf } t;
     pAST init = nullptr;
-    pAST cond;
-    pAST body;
+    pAST cond;  // cannot be nullptr
+    pAST body;  // cannot be nullptr
     // else block or another if stmt
     pAST elseBlockStmt = nullptr;
+
+    IfStmtAST() = delete;
+    IfStmtAST(Type _t, pT _init, pT _cond, pT _body, pT _elseBlockStmt)
+        : t(_t) {
+        if (_init != nullptr) {
+            init = pAST(_init);
+        }
+        cond = pAST(_cond);
+        body = pAST(_body);
+        if (_elseBlockStmt != nullptr) {
+            elseBlockStmt = pAST(_elseBlockStmt);
+        }
+        // set parent
+        if (init != nullptr) {
+            init->setParent(this);
+        }
+        cond->setParent(this);
+        body->setParent(this);
+        if (elseBlockStmt != nullptr) {
+            elseBlockStmt->setParent(this);
+        }
+    }
 
     TType type() const override { return ty; }
     json toJson() const override {
@@ -772,6 +931,8 @@ class ExpStmtAST : public StmtAST {
     TType ty = TType::ExpStmtT;
     pAST exp;
 
+    ExpStmtAST(pT exp) : exp(pAST(exp)) { exp->setParent(this); }
+
     TType type() const override { return ty; }
     json toJson() const override {
         json j;
@@ -786,6 +947,14 @@ class BranchStmtAST : public StmtAST {
     TType ty = TType::BranchStmtT;
     enum Type { Break, Continue, Goto } t;
     string ident = "";
+
+    BranchStmtAST(Type _t, string *_ident = nullptr) : t(_t) {
+        if (_ident != nullptr) {
+            ident = *pStr(_ident);
+        } else {
+            ident = "";
+        }
+    }
 
     TType type() const override { return ty; }
     json toJson() const override {
@@ -804,6 +973,10 @@ class IncDecStmtAST : public StmtAST {
     TType ty = TType::IncDecStmtT;
     pAST target;
     bool isInc;
+
+    IncDecStmtAST(pT target, bool isInc) : target(pAST(target)), isInc(isInc) {
+        target->setParent(this);
+    }
 
     TType type() const override { return ty; }
     json toJson() const override {
@@ -827,6 +1000,9 @@ class MakeExpAST : public ExpAST {
     MakeExpAST(BaseAST *tt, BaseAST *exp) {
         t = pAST(tt);
         len = pAST(exp);
+        // set parent
+        t->setParent(this);
+        len->setParent(this);
     }
 
     int eval() const override {
@@ -857,18 +1033,29 @@ class ArrayExpAST : public ExpAST {
     pAST t;              // BType, array type like []int
     pvpAST initValList;  // list of initVal, cannot be nullptr
 
+    ArrayExpAST() = delete;
+    ArrayExpAST(pT _t, pvpT list) {
+        t = pAST(_t);
+        initValList = pvpAST(list);
+        // set parent
+        t->setParent(this);
+        for (auto &exp : *initValList) {
+            exp->setParent(this);
+        }
+    }
+
     int eval() const override {
         cerr << "eval: array exp cannot be int" << endl;
         assert(false);
         return -1;
     }
     BaseAST *copy() const override {
-        auto ret = new ArrayExpAST();
-        ret->t = pAST(t->copy());
-        ret->initValList = make_unique<vpAST>();
-        for (auto &exp : *initValList) {
-            ret->initValList->push_back(pAST(exp->copy()));
+        auto _t = t->copy();
+        auto _list = new vector<pAST>();
+        for (auto &exp : *_list) {
+            _list->push_back(pAST(exp->copy()));
         }
+        auto ret = new ArrayExpAST(_t, _list);
         return ret;
     }
     string info() const override { return t->info(); }
@@ -899,7 +1086,7 @@ class NilAST : public ExpAST {
         return -1;
     }
     BaseAST *copy() const override { return new NilAST(); }
-    string info() const override { return "nil"; } // matches any pointer
+    string info() const override { return "nil"; }  // matches any pointer
     TType type() const override { return ty; }
     json toJson() const override {
         json j;
