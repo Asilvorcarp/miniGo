@@ -277,10 +277,21 @@ def codeGenForFunc(fn: ValueRef, globalNames: List[str],
     g = build_graph()
     colors = [i for i in range(8)]
     coloring = color_graph(g, list(allTemp), colors)
-    print("coloring", coloring)
-    print("single nodes:", set(allTemp) - set(g.all_nodes()))
-    print("color needed:", len(set(coloring.values())))
+    note = ["coloring: " + str(coloring)]
+    note += ["single nodes: " + str(set(allTemp) - set(g.all_nodes()))]
+    note += ["color needed: " + str(len(set(coloring.values())))]
+    note = "\n".join(note)
+    print(note)
+    # output the note about the graph
+    if action == "output":
+        # make sure the directory exists
+        os.makedirs(os.path.dirname(
+            f"build/graph/{funcName}.txt"), exist_ok=True)
+        with open(f"build/graph/{funcName}.txt", "w") as f:
+            f.write(note)
+    # output the graph
     g.plot(coloring, funcName, action)
+
     # get depth in the stack
     depth: Dict[str, int] = {}
     for k, v in allocas.items():
