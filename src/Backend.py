@@ -1,16 +1,15 @@
 # %%
+# %%
 import os
 import llvmlite.binding as llvm
 import copy
 from random import choice
-from typing import Optional, Union, Any, Set, List, Tuple, Dict, Collection
+from typing import Literal, Optional, Union, Any, Set, List, Tuple, Dict, Collection
 from llvmlite.binding import ValueRef
+import matplotlib
 import matplotlib.pyplot as plt
 import networkx as nx
 import argparse
-
-# TODO:
-# 1. support global
 
 
 class Graph:
@@ -60,7 +59,8 @@ class Graph:
     def neighbors(self, x):
         return self._adjacency_list.get(x, [])
 
-    def plot(self, coloring, title):
+    def plot(self, coloring, title,
+             action: Literal['output', 'show', 'none'] = 'output'):
         G = nx.Graph()
 
         # Sorting to get repeatable graphs
@@ -72,12 +72,22 @@ class Graph:
             for value in self._adjacency_list[key]:
                 G.add_edge(key, value)
 
-        plt.title(title)
+        if action != 'show':
+            matplotlib.use('Agg')
+
+        plt.title(title+"\nInterference Graph")
         plt.size = (20, 20)
         # other layout available at https://networkx.org/documentation/stable/reference/drawing.html
         nx.draw(G, pos=nx.shell_layout(G), node_color=ordered_coloring,
                 with_labels=True)
-        plt.show()
+
+        if action == 'output':
+            # make sure the directory exists
+            os.makedirs(os.path.dirname(
+                f"build/graph/{title}.png"), exist_ok=True)
+            plt.savefig(f"build/graph/{title}.png")
+        elif action == 'show':
+            plt.show()
 
     def all_nodes(self):
         return self._adjacency_list.keys()
@@ -113,7 +123,8 @@ def restore() -> List[str]:
     return [f"popq %r{x}" for x in range(8, 16)][::-1]
 
 
-def codeGenForFunc(fn: ValueRef, globalNames: List[str], showImg=True) -> List[str]:
+def codeGenForFunc(fn: ValueRef, globalNames: List[str],
+                   action: Literal['output', 'show', 'none'] = 'output') -> List[str]:
     funcName = fn.name
     print("codeGenForFunc", funcName)
 
@@ -269,8 +280,7 @@ def codeGenForFunc(fn: ValueRef, globalNames: List[str], showImg=True) -> List[s
     print("coloring", coloring)
     print("single nodes:", set(allTemp) - set(g.all_nodes()))
     print("color needed:", len(set(coloring.values())))
-    if showImg:
-        g.plot(coloring, f"{funcName}\nInterference Graph")
+    g.plot(coloring, funcName, action)
     # get depth in the stack
     depth: Dict[str, int] = {}
     for k, v in allocas.items():
@@ -572,7 +582,7 @@ def codeGenForGlobalVar(gv: ValueRef) -> List[str]:
     return asm
 
 
-def codeGen(fileName: str, showImg=True) -> List[List[str]]:
+def codeGen(fileName: str, action: Literal['output', 'show', 'none'] = 'output') -> List[List[str]]:
     llvm.initialize()
     ir = open(fileName).read()
     # the ModuleRef
@@ -597,15 +607,15 @@ def codeGen(fileName: str, showImg=True) -> List[List[str]]:
     for fn in mod.functions:
         if fn.is_declaration:
             continue
-        asm = codeGenForFunc(fn, globalNames, showImg)
+        asm = codeGenForFunc(fn, globalNames, action)
         text.append(asm)
     # llvm.shutdown()
     asms += text + bss
     return asms
 
 
-def ll2asm(inFile, outFile, showImg=True):
-    asms = codeGen(inFile, showImg)
+def ll2asm(inFile, outFile, action: Literal['output', 'show', 'none'] = 'output'):
+    asms = codeGen(inFile, action)
     flat = ''
     flat += '\n'.join(['\n'.join(x + ['']) for x in asms])
     flat += '\n.section	".note.GNU-stack","",@progbits\n'
@@ -629,13 +639,17 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="The Backend of the Compiler")
 
     parser.add_argument('-f', '--file', type=str, help="Input file name")
-    parser.add_argument('-o', '--output', type=str, help="Output file name")
+    parser.add_argument('-o', '--output', type=str, default='a.s',
+                        help="Output file name")
+    parser.add_argument('-a', '--action', type=str, default='output',
+                        help="Action about the graph: output, show or none")
 
     args = parser.parse_args()
 
     input_file = args.file
     output_file = args.output
+    action = args.action
 
-    ll2asm(input_file, output_file, showImg=False)
+    ll2asm(input_file, output_file, action)
 
 # %%
