@@ -18,6 +18,8 @@ extern FILE *yyin;
 extern int yyparse(unique_ptr<BaseAST> &ast);
 extern int yydebug;
 
+uint BaseAST::counter = 0;
+
 // .go to .ll
 void build(string inFile, string outLL) {
     // >> scan and parse

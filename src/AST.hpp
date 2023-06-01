@@ -48,6 +48,10 @@ enum class TType {
 
 // 所有 AST 的基类
 class BaseAST {
+   protected:
+    // counter for some ASTs
+    static uint counter;
+
    public:
     BaseAST *parent = nullptr;
     virtual ~BaseAST() = default;
@@ -540,6 +544,8 @@ class CallExpAST : public ExpAST {
 class ForStmtAST : public StmtAST {
    public:
     TType ty = TType::ForStmtT;
+    // id for labels
+    uint id;
     pAST init = make_unique<EmptyStmtAST>();
     pAST cond = make_unique<NumberAST>(1);
     pAST post = make_unique<EmptyStmtAST>();
@@ -547,6 +553,7 @@ class ForStmtAST : public StmtAST {
 
     ForStmtAST() = delete;
     ForStmtAST(pT _init, pT _cond, pT _post, pT _body) {
+        id = BaseAST::counter++;
         if (_init == nullptr)
             init = make_unique<EmptyStmtAST>();
         else
@@ -565,6 +572,15 @@ class ForStmtAST : public StmtAST {
         cond.get()->setParent(this);
         post.get()->setParent(this);
         body.get()->setParent(this);
+    }
+
+    // get label of different suffix,
+    // including cond, post, body, end
+    string getLabel(string suffix) {
+        auto labels = new vector<string>();
+        stringstream ss;
+        ss << "for." << id << "." << suffix;
+        return ss.str();
     }
 
     TType type() const override { return ty; }
@@ -753,23 +769,15 @@ class ShortVarDeclAST : public StmtAST {
     // +=, -=, *=, /=, %=: only one target and one initVal
     ShortVarDeclAST(BaseAST *target, char _op, BaseAST *initVal) {
         isDefine = false;
-        cout << ">> FUCK" << endl;
         target->setParent(this);
         targets = make_unique<vector<pAST>>();
         targets->push_back(pAST(target));
-        cout << ">> FUCK2" << endl;
         auto target2 = target->copy();
-        cout << ">> FUCK3" << endl;
         auto initVal2 = initVal->copy();
-        cout << ">> FUCK33" << endl;
         auto binInit = new BinExpAST(_op, target2, initVal2);
-        cout << ">> FUCK4" << endl;
         binInit->setParent(this);
-        cout << ">> FUCK5" << endl;
         initVals = make_unique<vector<pAST>>();
-        cout << ">> FUCK6" << endl;
         initVals->push_back(pAST(binInit));
-        cout << ">> FUCK7" << endl;
     }
 
     TType type() const override { return ty; }
@@ -813,7 +821,8 @@ class LValAST : public ExpAST {
             indexList = pvpAST(_indexList);
         }
     }
-    LValAST(string ident, pvpT list, string typeInfo) : ident(ident), typeInfo(typeInfo) {
+    LValAST(string ident, pvpT list, string typeInfo)
+        : ident(ident), typeInfo(typeInfo) {
         indexList = pvpAST(list);
         for (auto &index : *indexList) {
             index->setParent(this);

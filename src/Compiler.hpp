@@ -350,32 +350,29 @@ class Compiler {
             os << "\n" << ifEnd << ":\n";
             restoreScope(outIf);
         } else if (stmt->type() == TType::ForStmtT) {
-            auto stmt2 = reinterpret_cast<ForStmtAST*>(stmt);
+            auto stm = reinterpret_cast<ForStmtAST*>(stmt);
             auto re1 = scope;
             enterScope();
             ss << labelSuffix++;
-            // auto forInit = genLabelId("for.init" + ss.str());
-            auto forCond = genLabelId("for.cond" + ss.str());
-            auto forBody = genLabelId("for.body" + ss.str());
-            auto forPost = genLabelId("for.post" + ss.str());
-            auto forEnd = genLabelId("for.end" + ss.str());
-            // br for.init
-            // os << "\tbr label %" << forInit << "\n";
+            auto forCond = stm->getLabel("cond");
+            auto forBody = stm->getLabel("body");
+            auto forPost = stm->getLabel("post");
+            auto forEnd = stm->getLabel("end");
             auto re2 = scope;
             enterScope();
             {
                 // os << "\n" << forInit << ":\n";
-                if (stmt2->init != nullptr &&
-                    stmt2->init->type() != TType::EmptyStmtT) {
-                    compileStmt(os, stmt2->init);
+                if (stm->init != nullptr &&
+                    stm->init->type() != TType::EmptyStmtT) {
+                    compileStmt(os, stm->init);
                 }
                 os << "\tbr label %" << forCond << "\n";
 
                 // for.cond
                 os << "\n" << forCond << ":\n";
-                if (stmt2->cond != nullptr &&
-                    stmt2->cond->type() != TType::EmptyStmtT) {
-                    auto cond = compileExpr(os, stmt2->cond);
+                if (stm->cond != nullptr &&
+                    stm->cond->type() != TType::EmptyStmtT) {
+                    auto cond = compileExpr(os, stm->cond);
                     os << "\tbr i1 " << cond << ", label %" << forBody
                        << ", label %" << forEnd << "\n";
                 } else {
@@ -386,16 +383,16 @@ class Compiler {
                 enterScope();
                 {
                     os << "\n" << forBody << ":\n";
-                    compileStmt(os, stmt2->body);
+                    compileStmt(os, stm->body);
                     os << "\tbr label %" << forPost << "\n";
                 }
                 restoreScope(re3);
                 // for.post
                 {
                     os << "\n" << forPost << ":\n";
-                    if (stmt2->post != nullptr &&
-                        stmt2->post->type() != TType::EmptyStmtT) {
-                        compileStmt(os, stmt2->post);
+                    if (stm->post != nullptr &&
+                        stm->post->type() != TType::EmptyStmtT) {
+                        compileStmt(os, stm->post);
                     }
                     os << "\tbr label %" << forCond << "\n";
                 }
@@ -426,9 +423,28 @@ class Compiler {
                 os << "\tret " << retType << " " << ret << "\n";
             }
         } else if (stmt->type() == TType::BranchStmtT) {
-            // TODO
-            cerr << "TODO support BranchStmtAST" << endl;
-            assert(false);
+            auto stm = reinterpret_cast<BranchStmtAST*>(stmt);
+            string labelSuffix = "";
+            string label = "";
+            if (stm->t == stm->Break) {
+                labelSuffix = "end";
+            } else if (stm->t == stm->Continue) {
+                labelSuffix = "post";
+            } else {
+                // goto
+                label = stm->ident;
+            }
+            if (labelSuffix != "") {
+                // get the for loop
+                pT curr = stmt;
+                while (curr->type() != TType::ForStmtT) {
+                    curr = curr->getParent();
+                }
+                auto forStmt = reinterpret_cast<ForStmtAST*>(curr);
+                // the label
+                label = forStmt->getLabel(labelSuffix);
+            }
+            os << "\tbr label %" << label << "\n";
         } else if (stmt->type() == TType::EmptyStmtT) {
             // do nothing
         } else if (stmt->type() == TType::IncDecStmtT) {
@@ -464,7 +480,6 @@ class Compiler {
     void compileStmt_assign(ostream& os, const pAST& _stmt) {
         // stmt: *ShortVarDeclAST
         auto stmt = reinterpret_cast<ShortVarDeclAST*>(_stmt.get());
-        // TODO, for now, any short var decl is int, not support array
         auto& targets = *stmt->targets;
         auto& initVals = *stmt->initVals;
         vector<string> valueNameList(initVals.size());
@@ -795,9 +810,9 @@ class Compiler {
             auto elemType = reduceDim(varType);
             auto elemSize = 8;  // ptr in x86_64 machine
             if (elemType == "i64") {
-                elemSize = 8; // x64
-            } else if (elemType == "i32"){
-                elemSize = 4; // int
+                elemSize = 8;  // x64
+            } else if (elemType == "i32") {
+                elemSize = 4;  // int
             }
             // get size of array
             auto sizeLocal = genId();
