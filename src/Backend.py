@@ -11,6 +11,8 @@ import matplotlib.pyplot as plt
 import networkx as nx
 import argparse
 
+optimize = True
+
 
 class Graph:
     def __init__(self):
@@ -351,6 +353,10 @@ def codeGenForFunc(fn: ValueRef, globalNames: List[str],
             return f'(%r{coloring[reg]+8})'
         return f"%r{coloring[reg]+8}"
 
+    # return the imm if it is a imm, else None
+    def isImm(*regs) -> List[int | None]:
+        return [int(reg[1:]) if reg[0] == '$' else None for reg in regs]
+
     asm: List[str] = []
     asm += [f"\t.globl {funcName}"]
     asm += [f"\t{funcName}:"]
@@ -375,9 +381,14 @@ def codeGenForFunc(fn: ValueRef, globalNames: List[str],
             # do not overwrite rs2
             if rd == rs2:
                 rs1, rs2 = rs2, rs1
-            cmd1 = f"movq {rs1}, {rd}"
-            cmd2 = f"addq {rs2}, {rd}"
-            cmds = [cmd1, cmd2]
+            cmds += [f"movq {rs1}, {rd}"]
+            cmds += [f"addq {rs2}, {rd}"]
+            if optimize:
+                isI = isImm(rs1, rs2)
+                # both are imm
+                if None not in isI:
+                    res = isI[0] + isI[1]
+                    cmds = [f"movq ${res}, {rd}"]
         elif op == "sub":
             rs1 = toR(regs[0])
             rs2 = toR(regs[1])
@@ -393,6 +404,12 @@ def codeGenForFunc(fn: ValueRef, globalNames: List[str],
             cmds += [f"movq {rs1}, {rd}"]
             cmds += [f"subq {rs2}, {rd}"]
             # cmds += [f"popq {r}" for r in toProtect][::-1]
+            if optimize:
+                isI = isImm(rs1, rs2)
+                # both are imm
+                if None not in isI:
+                    res = isI[0] - isI[1]
+                    cmds = [f"movq ${res}, {rd}"]
         elif op == "or":
             rs1 = toR(regs[0])
             rs2 = toR(regs[1])
@@ -430,6 +447,12 @@ def codeGenForFunc(fn: ValueRef, globalNames: List[str],
             cmds += [f"imulq {rs2}"]
             cmds += [f"movq %rax, {rd}"]
             # cmds += [f"popq {r}" for r in toProtect][::-1]
+            if optimize:
+                isI = isImm(rs1, rs2)
+                # both are imm
+                if None not in isI:
+                    res = isI[0] * isI[1]
+                    cmds = [f"movq ${res}, {rd}"]
         elif op == "sdiv":
             rs1 = toR(regs[0])
             rs2 = toR(regs[1])
@@ -448,6 +471,12 @@ def codeGenForFunc(fn: ValueRef, globalNames: List[str],
             cmds += [f"idivq {rs2}"]
             cmds += [f"movq %rax, {rd}"]
             # cmds += [f"popq {r}" for r in toProtect][::-1]
+            if optimize:
+                isI = isImm(rs1, rs2)
+                # both are imm
+                if None not in isI:
+                    res = isI[0] / isI[1]
+                    cmds = [f"movq ${res}, {rd}"]
         elif op == "srem":
             rs1 = toR(regs[0])
             rs2 = toR(regs[1])
@@ -508,6 +537,8 @@ def codeGenForFunc(fn: ValueRef, globalNames: List[str],
             cmds += [f"movq %rax, {rd}"]
             cmds += [f"popq %rax"]
         elif op == 'br':
+            # None if no label in next line
+            nextLineLabel = idxToLabel.get(idx, None)
             labels = []
             for j in regs:
                 if str(j.type) == "label":
@@ -515,7 +546,14 @@ def codeGenForFunc(fn: ValueRef, globalNames: List[str],
             labels.reverse()  # the right order
             if len(labels) == 1 and labelToIdx.get(labels[0]) != idx+1:
                 cmds = [f"jmp {labels[0]}"]
+                if optimize:
+                    if nextLineLabel != None and nextLineLabel == labels[0]:
+                        # next line is label, no need to jmp
+                        cmds = []
             elif len(labels) == 2:
+                # assert the first label is always next line
+                if nextLineLabel != None and nextLineLabel != labels[0]:
+                    raise Exception("br first label is not next line")
                 # asm += [f"\t{str(labels)}"]
                 rs = toR(regs[0])
                 cmds += [f"cmpq $0, {rs}"]
@@ -640,13 +678,25 @@ def ll2asm(inFile, outFile, action: Literal['output', 'show', 'none'] = 'output'
     flat += '\n'.join(['\n'.join(x + ['']) for x in asms])
     flat += '\n.section	".note.GNU-stack","",@progbits\n'
     # some simple optimization
-    rm = []
-    for line in flat.split('\n'):
-        if line.startswith('movq'):
-            if line.split()[1][:-1] == line.split()[2]:
-                rm += [line]
-    for line in rm:
-        flat = flat.replace(line+'\n', '')
+    if optimize:
+        # remove useless movq
+        rm = []
+        for line in flat.split('\n'):
+            if line.startswith('movq'):
+                if line.split()[1][:-1] == line.split()[2]:
+                    rm += [line]
+        for line in rm:
+            flat = flat.replace(line+'\n', '')
+        # remove the second br in two consecutive br
+        # no label in between of course
+        rm = []
+        lines = flat.split('\n')
+        for idx, line in enumerate(lines):
+            if line.startswith('br'):
+                if lines[idx-1].startswith('br'):
+                    rm += [line]
+        for line in rm:
+            flat = flat.replace(line+'\n', '')
     # write to file
     with open(outFile, 'w') as f:
         f.write(flat)
