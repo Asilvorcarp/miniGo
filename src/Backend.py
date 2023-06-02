@@ -115,12 +115,20 @@ def color_graph(g: Graph, regs: Collection[str], colors: List[str]) -> Optional[
     return coloring
 
 
-def save() -> List[str]:
-    return [f"pushq %r{x}" for x in range(8, 16)]
+def save(regs) -> List[str]:
+    if regs == None:
+        regs = [f'r{x}' for x in range(8, 16)]
+    elif isinstance(regs, int):
+        regs = [f'r{x}' for x in range(8, 8+regs)]
+    return [f"pushq %{r}" for r in regs]
 
 
-def restore() -> List[str]:
-    return [f"popq %r{x}" for x in range(8, 16)][::-1]
+def restore(regs) -> List[str]:
+    if regs == None:
+        regs = [f'r{x}' for x in range(8, 16)]
+    elif isinstance(regs, int):
+        regs = [f'r{x}' for x in range(8, 8+regs)]
+    return [f"popq %{r}" for r in regs][::-1]
 
 
 def codeGenForFunc(fn: ValueRef, globalNames: List[str],
@@ -277,9 +285,10 @@ def codeGenForFunc(fn: ValueRef, globalNames: List[str],
     g = build_graph()
     colors = [i for i in range(8)]
     coloring = color_graph(g, list(allTemp), colors)
+    colorNeeded = len(set(coloring.values()))
     note = ["coloring: " + str(coloring)]
     note += ["single nodes: " + str(set(allTemp) - set(g.all_nodes()))]
-    note += ["color needed: " + str(len(set(coloring.values())))]
+    note += ["color needed: " + str(colorNeeded)]
     note = "\n".join(note)
     print(note)
     # output the note about the graph
@@ -348,7 +357,7 @@ def codeGenForFunc(fn: ValueRef, globalNames: List[str],
     asm += [f"pushq %rbp"]
     asm += [f"movq %rsp, %rbp"]
     asm += [f"subq ${local}, %rsp"]
-    asm += save()
+    asm += save(colorNeeded)
     for idx in useDef:
         i: ValueRef = useDef[idx][0]
         print(">", i)
@@ -376,14 +385,14 @@ def codeGenForFunc(fn: ValueRef, globalNames: List[str],
             toProtect = []
             insert = []
             if rd == rs2:
-                insert = [f"movq {rs2}, %rcx"]
-                rs2 = "%rcx"
-                toProtect += ['%rcx']
-            cmds += [f"pushq {r}" for r in toProtect]
+                insert = [f"movq {rs2}, %rax"]
+                rs2 = "%rax"
+                toProtect += ['%rax']
+            # cmds += [f"pushq {r}" for r in toProtect]
             cmds += insert
             cmds += [f"movq {rs1}, {rd}"]
             cmds += [f"subq {rs2}, {rd}"]
-            cmds += [f"popq {r}" for r in toProtect][::-1]
+            # cmds += [f"popq {r}" for r in toProtect][::-1]
         elif op == "or":
             rs1 = toR(regs[0])
             rs2 = toR(regs[1])
@@ -415,12 +424,12 @@ def codeGenForFunc(fn: ValueRef, globalNames: List[str],
                 insert = [f"movq {rs2}, %rcx"]
                 rs2 = "%rcx"
                 toProtect += ['%rcx']
-            cmds += [f"pushq {r}" for r in toProtect]
+            # cmds += [f"pushq {r}" for r in toProtect]
             cmds += [f"movq {rs1}, %rax"]
             cmds += insert
             cmds += [f"imulq {rs2}"]
             cmds += [f"movq %rax, {rd}"]
-            cmds += [f"popq {r}" for r in toProtect][::-1]
+            # cmds += [f"popq {r}" for r in toProtect][::-1]
         elif op == "sdiv":
             rs1 = toR(regs[0])
             rs2 = toR(regs[1])
@@ -432,13 +441,13 @@ def codeGenForFunc(fn: ValueRef, globalNames: List[str],
                 insert = [f"movq {rs2}, %rcx"]
                 rs2 = "%rcx"
                 toProtect += ['%rcx']
-            cmds += [f"pushq {r}" for r in toProtect]
+            # cmds += [f"pushq {r}" for r in toProtect]
             cmds += [f"movq {rs1}, %rax"]
             cmds += [f"cqto"]
             cmds += insert
             cmds += [f"idivq {rs2}"]
             cmds += [f"movq %rax, {rd}"]
-            cmds += [f"popq {r}" for r in toProtect][::-1]
+            # cmds += [f"popq {r}" for r in toProtect][::-1]
         elif op == "srem":
             rs1 = toR(regs[0])
             rs2 = toR(regs[1])
@@ -450,13 +459,13 @@ def codeGenForFunc(fn: ValueRef, globalNames: List[str],
                 insert = [f"movq {rs2}, %rcx"]
                 rs2 = "%rcx"
                 toProtect += ['%rcx']
-            cmds += [f"pushq {r}" for r in toProtect]
+            # cmds += [f"pushq {r}" for r in toProtect]
             cmds += [f"movq {rs1}, %rax"]
             cmds += [f"cqto"]
             cmds += insert
             cmds += [f"idivq {rs2}"]
             cmds += [f"movq %rdx, {rd}"]
-            cmds += [f"popq {r}" for r in toProtect][::-1]
+            # cmds += [f"popq {r}" for r in toProtect][::-1]
         elif op == 'store':
             rs = toR(regs[0])
             rd = toR(regs[1], True)
@@ -548,10 +557,10 @@ def codeGenForFunc(fn: ValueRef, globalNames: List[str],
                 insert += [f"movq {rs2}, %rax"]
                 rs2 = "%rax"
                 toProtect += ['%rax']
-            cmds += [f"pushq {r}" for r in toProtect]
+            # cmds += [f"pushq {r}" for r in toProtect]
             cmds += insert
             cmds += [f"leaq ({rs1},{rs2},{8}), {rd}"]
-            cmds += [f"popq {r}" for r in toProtect][::-1]
+            # cmds += [f"popq {r}" for r in toProtect][::-1]
         elif op == 'bitcast':
             rs = toR(regs[0])
             rd = toR(i)
@@ -564,7 +573,7 @@ def codeGenForFunc(fn: ValueRef, globalNames: List[str],
         print("  -", cmds)
 
     asm += [f"\t{funcName}_end:"]
-    asm += restore()
+    asm += restore(colorNeeded)
     asm += [f"movq %rbp, %rsp"]
     asm += [f"popq %rbp"]
     asm += [f"retq"]
