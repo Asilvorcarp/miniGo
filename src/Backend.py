@@ -547,13 +547,14 @@ def codeGenForFunc(fn: ValueRef, globalNames: List[str],
             a = toR(regs[0])
             b = toR(regs[1])
             rd = toR(i)
-            # this is "a-b"
-            cmds += [f"pushq %rax"]
+            toProtect = ['%rax']
+            # cmds += [f"pushq {r}" for r in toProtect]
             cmds += [f"movq $0, %rax"]
+            # this is "a-b"
             cmds += [f"cmpq {b}, {a}"]
             cmds += [f"{toSet[exactType]} %al"]
             cmds += [f"movq %rax, {rd}"]
-            cmds += [f"popq %rax"]
+            # cmds += [f"popq {r}" for r in toProtect][::-1]
         elif op == 'br':
             # None if no label in next line
             nextLineLabel = idxToLabel.get(idx, None)
