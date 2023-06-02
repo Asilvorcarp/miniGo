@@ -10,6 +10,9 @@ using namespace std;
 
 extern int yydebug;
 
+/**
+ * @brief the types of the AST
+ */
 enum class TType {
     CompUnitT,
     FuncDefT,
@@ -51,26 +54,72 @@ enum class TType {
  */
 class BaseAST {
    protected:
-    // counter for some ASTs
+    /**
+     * @brief counter for some ASTs to generate unique id
+     * @note currently used in ForStmtAST
+     */
     static uint counter;
 
    public:
+    /**
+     * @brief the parent of the AST
+     * @note need to be set when constructing the AST
+     */
     BaseAST *parent = nullptr;
+    /**
+     * @brief Destroy the BaseAST object
+     */
     virtual ~BaseAST() = default;
+    /**
+     * @brief get the type of the AST
+     * @return TType - the type of the AST
+     */
     virtual TType type() const = 0;
+    /**
+     * @brief get the json representation of the AST
+     * 
+     * @return json 
+     */
     virtual json toJson() const = 0;
+    /**
+     * @brief get the string representation of the AST in json format
+     */
     friend ostream &operator<<(ostream &os, const BaseAST &ast) {
         return os << ast.toJson().dump(4);
     }
-    // set parent
+    /**
+     * @brief Set the Parent object 
+     * 
+     * @param parent 
+     */
     void setParent(BaseAST *parent) { this->parent = parent; }
-    // get parent
+    /**
+     * @brief Get the Parent object
+     * 
+     * @return BaseAST* 
+     */
     BaseAST *getParent() { return parent; }
-    // some of AST implement this to add to its children
+    /**
+     * @brief add a child to the AST
+     * @note currently used in LValAST to add index
+     * @note not all ASTs implement this
+     * 
+     * @param ast 
+     */
     virtual void add(BaseAST *ast){};
-    // some of AST implement this to get type info
+    /**
+     * @brief get the type info of the AST
+     * @note not all ASTs implement this
+     * 
+     * @return string - the type info
+     */
     virtual string info() const { return "base"; }
-    // some of AST implement this to copy itself
+    /**
+     * @brief copy the AST itself
+     * @note not all ASTs implement this
+     * 
+     * @return BaseAST* - the copied AST
+     */
     virtual BaseAST *copy() const { return nullptr; }
 };
 
@@ -82,12 +131,24 @@ using pvpAST = unique_ptr<vpAST>;
 using pvStr = unique_ptr<vector<string>>;
 using pStr = unique_ptr<string>;
 
+/**
+ * @brief the base AST of all the statements
+ */
 class StmtAST : public BaseAST {};
+
+/**
+ * @brief the base AST of all the expressions
+ */
 class ExpAST : public BaseAST {
    public:
     virtual int eval() const = 0;
 };
 
+/**
+ * @brief AST of variable specification
+ * @note Example: "var a, b, c int = 1, 2, 3"
+ * @note the type of the variable may be inferred from the init value
+ */
 class VarSpecAST : public BaseAST {
    public:
     TType ty = TType::VarSpecT;
@@ -137,6 +198,10 @@ class VarSpecAST : public BaseAST {
     }
 };
 
+/**
+ * @brief AST of function definition
+ * @note Example: "func f(a int, b int) int { return a + b }"
+ */
 class FuncDefAST : public BaseAST {
    public:
     TType ty = TType::FuncDefT;
@@ -196,6 +261,11 @@ class FuncDefAST : public BaseAST {
     }
 };
 
+/**
+ * @brief AST of a runtime function
+ * @note mainly for getting the types of return value and parameters easily
+ * from a AST node of a object in a scope
+ */
 class RuntimeFuncAST : public FuncDefAST {
    public:
     TType ty = TType::RuntimeFuncT;
@@ -231,6 +301,10 @@ class RuntimeFuncAST : public FuncDefAST {
     }
 };
 
+/**
+ * @brief the AST of a compilation unit, usually a file
+ * @note maybe a package in the future
+ */
 class CompUnitAST : public BaseAST {
    public:
     TType ty = TType::CompUnitT;
@@ -271,6 +345,9 @@ class CompUnitAST : public BaseAST {
     }
 };
 
+/**
+ * @brief AST of a parameter in a function
+ */
 class ParamAST : public BaseAST {
    public:
     TType ty = TType::ParamT;
@@ -294,6 +371,10 @@ class ParamAST : public BaseAST {
     }
 };
 
+/**
+ * @brief AST of a block
+ * @note a block is a list of statements
+ */
 class BlockAST : public BaseAST {
    public:
     TType ty = TType::BlockT;
@@ -317,6 +398,10 @@ class BlockAST : public BaseAST {
     }
 };
 
+/**
+ * @brief AST of a empty statement 
+ * @note Example: ";"
+ */
 class EmptyStmtAST : public StmtAST {
    public:
     TType ty = TType::EmptyStmtT;
@@ -328,6 +413,10 @@ class EmptyStmtAST : public StmtAST {
     }
 };
 
+/**
+ * @brief AST of return statement
+ * @note Example: "return 1;"
+ */
 class ReturnStmtAST : public StmtAST {
    public:
     TType ty = TType::ReturnStmtT;
@@ -357,6 +446,10 @@ class ReturnStmtAST : public StmtAST {
     }
 };
 
+/**
+ * @brief AST of a parenthesized expression
+ * @note Example: "(1 + 2)"
+ */
 class ParenExpAST : public ExpAST {
    public:
     TType ty = TType::ParenExpT;
@@ -383,6 +476,9 @@ class ParenExpAST : public ExpAST {
     }
 };
 
+/**
+ * @brief AST of a number
+ */
 class NumberAST : public ExpAST {
    public:
     TType ty = TType::NumberT;
@@ -401,6 +497,9 @@ class NumberAST : public ExpAST {
     }
 };
 
+/**
+ * @brief AST of a (base) type
+ */
 class BTypeAST : public BaseAST {
    public:
     TType ty = TType::BTypeT;
@@ -456,6 +555,10 @@ class BTypeAST : public BaseAST {
     }
 };
 
+/**
+ * @brief AST of a unary expression
+ * @note Example: "-x" "!(x + 1)"
+ */
 class UnaryExpAST : public ExpAST {
    public:
     TType ty = TType::UnaryExpT;
@@ -499,6 +602,10 @@ class UnaryExpAST : public ExpAST {
     }
 };
 
+/**
+ * @brief AST of a call expression
+ * @note Example: "f(1, 2, 3)"
+ */
 class CallExpAST : public ExpAST {
    public:
     TType ty = TType::CallExpT;
@@ -543,6 +650,10 @@ class CallExpAST : public ExpAST {
     }
 };
 
+/**
+ * @brief AST of a for statement
+ * @note This includes always/while in golang
+ */
 class ForStmtAST : public StmtAST {
    public:
     TType ty = TType::ForStmtT;
@@ -618,6 +729,10 @@ class ForStmtAST : public StmtAST {
     }
 };
 
+/**
+ * @brief AST of a binary expression
+ * @note Example: "1 + 2"
+ */
 class BinExpAST : public ExpAST {
    public:
     TType ty = TType::BinExpT;
@@ -750,7 +865,9 @@ class BinExpAST : public ExpAST {
     }
 };
 
-// including = and :=, TODO rename
+/**
+ * @brief AST of assignment, including = and :=
+ */
 class ShortVarDeclAST : public StmtAST {
    public:
     TType ty = TType::ShortVarDeclT;
@@ -803,6 +920,10 @@ class ShortVarDeclAST : public StmtAST {
     }
 };
 
+/**
+ * @brief AST of a left value
+ * @note Example: a[1][2]
+ */
 class LValAST : public ExpAST {
    public:
     TType ty = TType::LValT;
@@ -887,6 +1008,9 @@ class LValAST : public ExpAST {
     }
 };
 
+/**
+ * @brief AST of a if statement
+ */
 class IfStmtAST : public StmtAST {
    public:
     TType ty = TType::IfStmtT;
@@ -937,6 +1061,10 @@ class IfStmtAST : public StmtAST {
     }
 };
 
+/**
+ * @brief AST of a expression statement
+ * @note Example: f(1, 2);
+ */
 class ExpStmtAST : public StmtAST {
    public:
     TType ty = TType::ExpStmtT;
@@ -953,6 +1081,10 @@ class ExpStmtAST : public StmtAST {
     }
 };
 
+/**
+ * @brief AST of a branch statement
+ * @note Example: break; continue; goto label;
+ */
 class BranchStmtAST : public StmtAST {
    public:
     TType ty = TType::BranchStmtT;
@@ -979,6 +1111,10 @@ class BranchStmtAST : public StmtAST {
     }
 };
 
+/**
+ * @brief AST of a inc/dec statement
+ * @note Example: i++; i--;
+ */
 class IncDecStmtAST : public StmtAST {
    public:
     TType ty = TType::IncDecStmtT;
@@ -999,9 +1135,11 @@ class IncDecStmtAST : public StmtAST {
     }
 };
 
-// make(Type t, int len)
-// e.g: make([][]int, 10)
-// actually initValAST not expAST
+/**
+ * @brief AST of a make expression
+ * @note Example: make([][]int, 10)
+ * @note This is actually a initValAST not expAST
+ */
 class MakeExpAST : public ExpAST {
    public:
     TType ty = TType::MakeExpT;
@@ -1037,7 +1175,11 @@ class MakeExpAST : public ExpAST {
     }
 };
 
-// actually initValAST not expAST
+/**
+ * @brief AST of a array expression
+ * @note Example: []int{1, 2, 3}
+ * @note This is actually a initValAST not expAST
+ */
 class ArrayExpAST : public ExpAST {
    public:
     TType ty = TType::ArrayExpT;
@@ -1085,7 +1227,10 @@ class ArrayExpAST : public ExpAST {
     }
 };
 
-// golang nil type, similar to nullptr
+/**
+ * @brief AST of a nil expression
+ * @note The type of nil is nil, which matches any pointer
+ */
 class NilAST : public ExpAST {
    public:
     TType ty = TType::NilT;

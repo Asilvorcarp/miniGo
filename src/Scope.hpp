@@ -11,9 +11,13 @@ using namespace std;
  */
 class Object {
    public:
-    /** the original name */
+    /**
+     * @brief the original name
+    */
     string Name;
-    /** the mangled name used in the LLVM IR */
+    /**
+     * @brief the mangled name used in the LLVM IR
+    */
     string MangledName;
     /**
      * @brief The AST node of the object
@@ -35,13 +39,13 @@ class Object {
 };
 
 /**
- * @brief The Scope class represents a scope in the program
+ * @brief A scope in the program
  * @note The scope is a tree structure, and the root is the universe scope
  * @note The universe scope contains all the runtime functions
  */
 class Scope {
    public:
-   /**
+    /**
     * @brief The outer scope of the current scope
     */
     Scope* Outer;

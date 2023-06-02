@@ -3,7 +3,7 @@
 /**
  * @file Compiler.hpp
  * @author Asilvorcarp (asilvorcarp@qq.com)
- * @brief the frontend, compile the AST to LLVM IR
+ * @brief the frontend which compile the AST to LLVM IR
  * @version 2.0
  * @date 2023-06-01
  * 
@@ -17,7 +17,7 @@
 using namespace std;
 
 /**
- * @brief the frontend, compile the AST to LLVM IR
+ * @brief the frontend which compile the AST to LLVM IR
  */
 class Compiler {
    public:
