@@ -1,26 +1,63 @@
 #pragma once
 
+/**
+ * @file Compiler.hpp
+ * @author Asilvorcarp (asilvorcarp@qq.com)
+ * @brief the frontend, compile the AST to LLVM IR
+ * @version 2.0
+ * @date 2023-06-01
+ * 
+ * @copyright Copyright (c) 2023
+ * 
+ */
+
 #include <AST.hpp>
 #include <Scope.hpp>
 
 using namespace std;
 
+/**
+ * @brief the frontend, compile the AST to LLVM IR
+ */
 class Compiler {
    public:
+    /**
+     * @brief the CompUnitAST to compile
+     */
     CompUnitAST* file;
+    /**
+     * @brief the current scope
+     */
     Scope* scope;
-    // id for generated temp (%t0, %t1, ...) and labels, use with ++
+    /**
+     * @brief id for generated temp (%t0, %t1, ...) and labels, use with ++
+     */
     int nextId = 0;
-    // avoid conflict of vars in different scope but with the same name, use with ++
+    /**
+     * @brief avoid conflict of vars in different scope but with the same name, use with ++
+     */
     int varSuffix = 0;
-    // suffix for each group of generated labels, use with ++
+    /**
+     * @brief suffix for each group of generated labels, use with ++
+     */
     int labelSuffix = 0;
-    // whether print debug info or not
+    /**
+     * @brief whether print debug info or not
+     */
     bool debug = false;
 
+    /**
+     * @brief Construct a new Compiler object with the Universe scope
+     */
     Compiler() : scope(Scope::Universe()) {}
     ~Compiler() {}
 
+    /**
+     * @brief compile the whole CompUnitAST (the file)
+     * 
+     * @param _file the CompUnitAST (file) to compile
+     * @return string, the compiled LLVM IR code
+     */
     string Compile(CompUnitAST* _file) {
         stringstream ss;
 
@@ -33,15 +70,38 @@ class Compiler {
         return ss.str();
     }
 
+    /**
+     * @brief enter a new scope
+     */
     void enterScope() { scope = new Scope(scope); }
+    /**
+     * @brief leave the current scope to the outer scope
+     */
     void leaveScope() { scope = scope->Outer; }
+    /**
+     * @brief restore the scope to the given scope
+     * 
+     * @param s the scope to restore to
+     */
     void restoreScope(Scope* s) { scope = s; }
 
+    /**
+     * @brief generate the header, including the package name and the runtime functions
+     * 
+     * @param os the ostream to write to
+     * @param file the CompUnitAST (file) to compile
+     */
     void genHeader(ostream& os, CompUnitAST* file) {
         os << "; package " << file->packageName << endl;
         os << Header;
     }
 
+    /**
+     * @brief generate the main function, which calls main_init and main_main
+     * 
+     * @param os the ostream to write to
+     * @param file the CompUnitAST (file) to compile
+     */
     void genMain(ostream& os, CompUnitAST* file) {
         if (file->packageName != "main") {
             return;
@@ -54,17 +114,36 @@ class Compiler {
         }
     }
 
+    /**
+     * @brief generate a new temp's id of LLVM IR
+     * 
+     * @return string - the temp's id
+     */
     string genId() {
         stringstream ss;
         ss << "%t" << nextId++;
         return ss.str();
     }
+
+    /**
+     * @brief generate a new label with unique id
+     * 
+     * @param name the label's name
+     * @return string - the label
+     */
     string genLabelId(string name) {
         stringstream ss;
         ss << name << "." << nextId++;
         return ss.str();
     }
 
+    /**
+     * @brief generate the LLVM IR of init a var with default val (usually zero val)
+     * 
+     * @param os the ostream to write to
+     * @param varType var's type
+     * @param varMName var's mangled name
+     */
     void genDefaultInit(ostream& os, string varType, string varMName) {
         if (varType == "i64") {
             // may include i64 in the future
@@ -78,6 +157,12 @@ class Compiler {
         }
     }
 
+    /**
+     * @brief generate the function to init global vars called X_init
+     * 
+     * @param os the ostream to write to
+     * @param file the CompUnitAST (file) to compile
+     */
     void genInit(ostream& os, CompUnitAST* file) {
         // the function to init globals
         os << "define void @" << file->packageName << "_init() {\n";
@@ -114,6 +199,12 @@ class Compiler {
         os << "}\n";
     }
 
+    /**
+     * @brief compile the file without the header and fake main function
+     * 
+     * @param os the ostream to write to
+     * @param file the CompUnitAST (file) to compile
+     */
     void compileFile(ostream& os, CompUnitAST* file) {
         auto re = scope;
         enterScope();
@@ -165,6 +256,13 @@ class Compiler {
         restoreScope(re);
     }
 
+    /**
+     * @brief compile a function
+     * 
+     * @param os the ostream to write to
+     * @param file the CompUnitAST (file) to compile
+     * @param fn the FuncDefAST to compile
+     */
     void compileFunc(ostream& os, CompUnitAST* file, FuncDefAST* fn) {
         auto paramMNameList = vector<string>();
         auto retType = fn->getRetType();
@@ -243,6 +341,12 @@ class Compiler {
         os << "}\n";
     }
 
+    /**
+     * @brief compile a statement
+     * 
+     * @param os the ostream to write to
+     * @param _stmt the StmtAST to compile
+     */
     void compileStmt(ostream& os, const pAST& _stmt) {
         // stmt: *StmtAST
         auto stmt = reinterpret_cast<StmtAST*>(_stmt.get());
@@ -477,6 +581,12 @@ class Compiler {
         }
     }
 
+    /**
+     * @brief compile a assign statement
+     * 
+     * @param os the ostream to write to
+     * @param _stmt the ShortVarDeclAST to compile
+     */
     void compileStmt_assign(ostream& os, const pAST& _stmt) {
         // stmt: *ShortVarDeclAST
         auto stmt = reinterpret_cast<ShortVarDeclAST*>(_stmt.get());
@@ -566,6 +676,13 @@ class Compiler {
         }
     }
 
+    /**
+     * @brief compile a expression
+     * 
+     * @param os the ostream to write to
+     * @param _expr the ExpAST to compile
+     * @return string 
+     */
     string compileExpr(ostream& os, const pAST& _expr) {
         // expr: *ExpAST
         auto expr = reinterpret_cast<ExpAST*>(_expr.get());
@@ -950,9 +1067,15 @@ class Compiler {
         return localName;
     }
 
-    // reduce dimension of array type
-    // change "[5 x [4 x i64]]" to "[4 x i64]"
-    // change "i64**" to "i64*"
+    /**
+     * @brief reduce dimension of array type
+     * 
+     * @param t the type string
+     * @return string - the reduced type string
+     * 
+     * @note change "[5 x [4 x i64]]" to "[4 x i64]"
+     * @note change "i64**" to "i64*"
+     */
     string reduceDim(string t) {
         int i = 0;
         while (i < t.size() && t[i] != 'x') i++;
@@ -978,7 +1101,13 @@ class Compiler {
         return res;
     }
 
-    // reduce dimension of array type for dim times
+    /**
+     * @brief reduce dimension of array type for dim times
+     * 
+     * @param t the type string
+     * @param dim the number of times to reduce
+     * @return string - the reduced type string
+     */
     string reduceDim(string t, int dim) {
         for (int i = 0; i < dim; i++) {
             t = reduceDim(t);
@@ -986,15 +1115,33 @@ class Compiler {
         return t;
     }
 
-    // increase dimension of array type
-    // support only pointer now (not like [5 x [4 x i64]])
+    /**
+     * @brief increase dimension of array type
+     * @note support only pointer now (not like [5 x [4 x i64]])
+     * 
+     * @param t 
+     * @return string 
+     */
     string increaseDim(string t) { return t + "*"; }
 
-    // whether a type is a pointer type
+    /**
+     * @brief whether a type is a pointer type
+     * 
+     * @param t the type string
+     * @return true 
+     * @return false 
+     */
     bool isPtr(string t) { return t.find("*") != string::npos || t == "nil"; }
 
-    // try to fit tRight to tLeft, if cannot, return false
-    // tRight maybe change to tLeft if it is nil
+    /**
+     * @brief try to fit tRight to tLeft, if cannot, return false
+     * @note tRight maybe change to tLeft if it is nil
+     * 
+     * @param tLeft the type string of LHS
+     * @param tRight the type string of RHS
+     * @return true 
+     * @return false 
+     */
     bool typeMatch(string tLeft, string& tRight) {
         // TODO use this in all type checking system
         if (tLeft == tRight) return true;
@@ -1007,6 +1154,12 @@ class Compiler {
         return false;
     }
 
+    /**
+     * @brief infer the type of an expression
+     * 
+     * @param _expr the expression AST
+     * @return string 
+     */
     string inferType(const pAST& _expr) {
         auto expr = reinterpret_cast<ExpAST*>(_expr.get());
         if (expr->type() == TType::NumberT) {

@@ -46,7 +46,9 @@ enum class TType {
     _4,
 };
 
-// 所有 AST 的基类
+/**
+ * @brief the base class of all ASTs
+ */
 class BaseAST {
    protected:
     // counter for some ASTs
