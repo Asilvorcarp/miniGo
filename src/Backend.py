@@ -420,6 +420,12 @@ def codeGenForFunc(fn: ValueRef, globalNames: List[str],
             cmd1 = f"movq {rs1}, {rd}"
             cmd2 = f"orq {rs2}, {rd}"
             cmds = [cmd1, cmd2]
+            if optimize:
+                isI = isImm(rs1, rs2)
+                # both are imm
+                if None not in isI:
+                    res = isI[0] | isI[1]
+                    cmds = [f"movq ${res}, {rd}"]
         elif op == "and":
             rs1 = toR(regs[0])
             rs2 = toR(regs[1])
@@ -430,6 +436,12 @@ def codeGenForFunc(fn: ValueRef, globalNames: List[str],
             cmd1 = f"movq {rs1}, {rd}"
             cmd2 = f"andq {rs2}, {rd}"
             cmds = [cmd1, cmd2]
+            if optimize:
+                isI = isImm(rs1, rs2)
+                # both are imm
+                if None not in isI:
+                    res = isI[0] & isI[1]
+                    cmds = [f"movq ${res}, {rd}"]
         elif op == "mul":
             rs1 = toR(regs[0])
             rs2 = toR(regs[1])
@@ -495,6 +507,12 @@ def codeGenForFunc(fn: ValueRef, globalNames: List[str],
             cmds += [f"idivq {rs2}"]
             cmds += [f"movq %rdx, {rd}"]
             # cmds += [f"popq {r}" for r in toProtect][::-1]
+            if optimize:
+                isI = isImm(rs1, rs2)
+                # both are imm
+                if None not in isI:
+                    res = isI[0] % isI[1]
+                    cmds = [f"movq ${res}, {rd}"]
         elif op == 'store':
             rs = toR(regs[0])
             rd = toR(regs[1], True)
@@ -687,6 +705,7 @@ def ll2asm(inFile, outFile, action: Literal['output', 'show', 'none'] = 'output'
                     rm += [line]
         for line in rm:
             flat = flat.replace(line+'\n', '')
+        # TODO ignore '#' lines
         # remove the second br in two consecutive br
         # no label in between of course
         rm = []
