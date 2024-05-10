@@ -1,11 +1,14 @@
 # miniGo
 
-The compiler for a subset of Golang, implemented in C++.
+The compiler for a subset of Golang, implemented in C++ and Python.
 
 ## Usage
 
 ```bash
+# get llvm code
 miniGo main.go -o main.ll
+# get amd64 assembly code
+src/Backend.py -f main.ll -o main.s
 ```
 
 `main.go` is the Golang source code and `main.ll` is the LLVM IR output you want.
